@@ -20,6 +20,17 @@ services:
       - grpc-network
     command: ["/app/client/client", "Docker"]
 
+  webapp:
+    build:
+      context: .
+      dockerfile: Dockerfile.webapp
+    ports:
+      - "8080:8080"
+    depends_on:
+      - server
+    networks:
+      - grpc-network
+
 networks:
   grpc-network:
     driver: bridge

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>gRPC Go Sample</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ccc; border-radius: 8px; }
+        input[type="text"] { width: calc(100% - 100px); padding: 8px; margin-right: 10px; border: 1px solid #ccc; border-radius: 4px; }
+        button { padding: 8px 15px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background-color: #0056b3; }
+        .greeting { margin-top: 20px; font-weight: bold; color: #28a745; }
+        .error { margin-top: 20px; font-weight: bold; color: #dc3545; }
+        .counter-output { margin-top: 20px; padding: 10px; border: 1px solid #eee; background-color: #f9f9f9; border-radius: 4px; min-height: 50px; }
+        .counter-item { padding: 5px 0; border-bottom: 1px dotted #ddd; }
+        .counter-item:last-child { border-bottom: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>gRPC Go Sample Application</h1>
+
+        <h2>Unary RPC: SayHello</h2>
+        <form action="/greet" method="post">
+            <input type="text" name="name" placeholder="Enter your name">
+            <button type="submit">Say Hello</button>
+        </form>
+        {{if .Greeting}}
+            <p class="greeting">{{.Greeting}}</p>
+        {{end}}
+        {{if .Error}}
+            <p class="error">{{.Error}}</p>
+        {{end}}
+
+        <h2>Server-Side Streaming RPC: StreamCounter</h2>
+        <button id="startCounter">Start Counter Stream</button>
+        <div class="counter-output" id="counterOutput"></div>
+
+        <script>
+            document.getElementById('startCounter').addEventListener('click', function() {
+                const counterOutput = document.getElementById('counterOutput');
+                counterOutput.innerHTML = ''; // Clear previous output
+
+                const eventSource = new EventSource('/stream-counter');
+
+                eventSource.onmessage = function(event) {
+                    const p = document.createElement('p');
+                    p.className = 'counter-item';
+                    p.textContent = 'Count: ' + event.data;
+                    counterOutput.appendChild(p);
+                };
+
+                eventSource.onerror = function(event) {
+                    console.error('EventSource failed:', event);
+                    const p = document.createElement('p');
+                    p.className = 'error';
+                    p.textContent = 'Error in stream: ' + (event.data || 'Unknown error');
+                    counterOutput.appendChild(p);
+                    eventSource.close();
+                };
+
+                eventSource.addEventListener('end', function(event) {
+                    const p = document.createElement('p');
+                    p.className = 'greeting';
+                    p.textContent = event.data;
+                    counterOutput.appendChild(p);
+                    eventSource.close();
+                });
+            });
+        </script>
+    </div>
+</body>
+</html>

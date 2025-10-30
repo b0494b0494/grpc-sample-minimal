@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net"
 	"time"
@@ -27,11 +26,10 @@ func (s *server) SayHello(ctx context.Context, in *pb.HelloRequest) (*pb.HelloRe
 	 nil
 }
 
-func (s *server) SayHelloServerStream(in *pb.HelloRequest, stream pb.Greeter_SayHelloServerStreamServer) error {
-	log.Printf("Received: %v for server stream", in.GetName())
-	for i := 0; i < 5; i++ {
-		message := fmt.Sprintf("Hello %s, count %d", in.GetName(), i)
-		if err := stream.Send(&pb.HelloReply{Message: message}); err != nil {
+func (s *server) StreamCounter(in *pb.CounterRequest, stream pb.Greeter_StreamCounterServer) error {
+	log.Printf("Received StreamCounter request with limit: %d", in.GetLimit())
+	for i := 0; i < int(in.GetLimit()); i++ {
+		if err := stream.Send(&pb.CounterReply{Count: int32(i + 1)}); err != nil {
 			return err
 		}
 		time.Sleep(time.Second)

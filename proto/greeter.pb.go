@@ -111,6 +111,96 @@ func (x *HelloReply) GetMessage() string {
 	return ""
 }
 
+// The request message for the counter stream.
+type CounterRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Limit         int32                  `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CounterRequest) Reset() {
+	*x = CounterRequest{}
+	mi := &file_proto_greeter_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CounterRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CounterRequest) ProtoMessage() {}
+
+func (x *CounterRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_greeter_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CounterRequest.ProtoReflect.Descriptor instead.
+func (*CounterRequest) Descriptor() ([]byte, []int) {
+	return file_proto_greeter_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *CounterRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+// The response message for the counter stream.
+type CounterReply struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Count         int32                  `protobuf:"varint,1,opt,name=count,proto3" json:"count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CounterReply) Reset() {
+	*x = CounterReply{}
+	mi := &file_proto_greeter_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CounterReply) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CounterReply) ProtoMessage() {}
+
+func (x *CounterReply) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_greeter_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CounterReply.ProtoReflect.Descriptor instead.
+func (*CounterReply) Descriptor() ([]byte, []int) {
+	return file_proto_greeter_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *CounterReply) GetCount() int32 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
 var File_proto_greeter_proto protoreflect.FileDescriptor
 
 const file_proto_greeter_proto_rawDesc = "" +
@@ -120,10 +210,14 @@ const file_proto_greeter_proto_rawDesc = "" +
 	"\x04name\x18\x01 \x01(\tR\x04name\"&\n" +
 	"\n" +
 	"HelloReply\x12\x18\n" +
-	"\amessage\x18\x01 \x01(\tR\amessage2\x83\x01\n" +
+	"\amessage\x18\x01 \x01(\tR\amessage\"&\n" +
+	"\x0eCounterRequest\x12\x14\n" +
+	"\x05limit\x18\x01 \x01(\x05R\x05limit\"$\n" +
+	"\fCounterReply\x12\x14\n" +
+	"\x05count\x18\x01 \x01(\x05R\x05count2\x80\x01\n" +
 	"\aGreeter\x124\n" +
-	"\bSayHello\x12\x13.proto.HelloRequest\x1a\x11.proto.HelloReply\"\x00\x12B\n" +
-	"\x14SayHelloServerStream\x12\x13.proto.HelloRequest\x1a\x11.proto.HelloReply\"\x000\x01B\x1bZ\x19grpc-sample-minimal/protob\x06proto3"
+	"\bSayHello\x12\x13.proto.HelloRequest\x1a\x11.proto.HelloReply\"\x00\x12?\n" +
+	"\rStreamCounter\x12\x15.proto.CounterRequest\x1a\x13.proto.CounterReply\"\x000\x01B\x1bZ\x19grpc-sample-minimal/protob\x06proto3"
 
 var (
 	file_proto_greeter_proto_rawDescOnce sync.Once
@@ -137,16 +231,18 @@ func file_proto_greeter_proto_rawDescGZIP() []byte {
 	return file_proto_greeter_proto_rawDescData
 }
 
-var file_proto_greeter_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_proto_greeter_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_proto_greeter_proto_goTypes = []any{
-	(*HelloRequest)(nil), // 0: proto.HelloRequest
-	(*HelloReply)(nil),   // 1: proto.HelloReply
+	(*HelloRequest)(nil),   // 0: proto.HelloRequest
+	(*HelloReply)(nil),     // 1: proto.HelloReply
+	(*CounterRequest)(nil), // 2: proto.CounterRequest
+	(*CounterReply)(nil),   // 3: proto.CounterReply
 }
 var file_proto_greeter_proto_depIdxs = []int32{
 	0, // 0: proto.Greeter.SayHello:input_type -> proto.HelloRequest
-	0, // 1: proto.Greeter.SayHelloServerStream:input_type -> proto.HelloRequest
+	2, // 1: proto.Greeter.StreamCounter:input_type -> proto.CounterRequest
 	1, // 2: proto.Greeter.SayHello:output_type -> proto.HelloReply
-	1, // 3: proto.Greeter.SayHelloServerStream:output_type -> proto.HelloReply
+	3, // 3: proto.Greeter.StreamCounter:output_type -> proto.CounterReply
 	2, // [2:4] is the sub-list for method output_type
 	0, // [0:2] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
@@ -165,7 +261,7 @@ func file_proto_greeter_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_greeter_proto_rawDesc), len(file_proto_greeter_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

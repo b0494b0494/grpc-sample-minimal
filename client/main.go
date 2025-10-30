@@ -39,11 +39,11 @@ func main() {
 	}
 	log.Printf("Greeting: %s", r.GetMessage())
 
-	// Call SayHelloServerStream
-	log.Printf("Calling SayHelloServerStream for %s", name)
-	stream, err := c.SayHelloServerStream(ctx, &pb.HelloRequest{Name: name})
+	// Call StreamCounter
+	log.Printf("Calling StreamCounter with limit 5")
+	stream, err := c.StreamCounter(ctx, &pb.CounterRequest{Limit: 5})
 	if err != nil {
-		log.Fatalf("could not call SayHelloServerStream: %v", err)
+		log.Fatalf("could not call StreamCounter: %v", err)
 	}
 
 	for {
@@ -54,7 +54,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("error while receiving stream: %v", err)
 		}
-		log.Printf("Stream Greeting: %s", reply.GetMessage())
+		log.Printf("Stream Counter: %d", reply.GetCount())
 	}
-	log.Printf("SayHelloServerStream finished")
+	log.Printf("StreamCounter finished")
 }
