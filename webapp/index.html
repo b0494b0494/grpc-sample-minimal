@@ -35,6 +35,16 @@
         <button id="startCounter">Start Counter Stream</button>
         <div class="counter-output" id="counterOutput"></div>
 
+        <h2>Bidirectional Streaming RPC: Chat</h2>
+        <div class="chat-container">
+            <div class="chat-messages" id="chatMessages"></div>
+            <form id="chatForm" action="/send-chat" method="post">
+                <input type="text" name="user" id="chatUser" placeholder="Your Name" value="Anonymous">
+                <input type="text" name="message" id="chatMessageInput" placeholder="Type your message...">
+                <button type="submit">Send</button>
+            </form>
+        </div>
+
         <script>
             document.getElementById('startCounter').addEventListener('click', function() {
                 const counterOutput = document.getElementById('counterOutput');
@@ -65,6 +75,53 @@
                     counterOutput.appendChild(p);
                     eventSource.close();
                 });
+            });
+
+            // Chat functionality
+            const chatMessages = document.getElementById('chatMessages');
+            const chatForm = document.getElementById('chatForm');
+            const chatMessageInput = document.getElementById('chatMessageInput');
+            const chatUser = document.getElementById('chatUser');
+
+            const chatEventSource = new EventSource('/chat-stream');
+
+            chatEventSource.onmessage = function(event) {
+                const p = document.createElement('p');
+                p.textContent = event.data;
+                chatMessages.appendChild(p);
+                chatMessages.scrollTop = chatMessages.scrollHeight; // Scroll to bottom
+            };
+
+            chatEventSource.onerror = function(event) {
+                console.error('Chat EventSource failed:', event);
+                const p = document.createElement('p');
+                p.className = 'error';
+                p.textContent = 'Error in chat stream: ' + (event.data || 'Unknown error');
+                chatMessages.appendChild(p);
+                chatEventSource.close();
+            };
+
+            chatForm.addEventListener('submit', function(event) {
+                event.preventDefault();
+                const user = chatUser.value;
+                const message = chatMessageInput.value;
+
+                if (user && message) {
+                    fetch('/send-chat', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: `user=${encodeURIComponent(user)}&message=${encodeURIComponent(message)}`,
+                    }).then(response => {
+                        if (!response.ok) {
+                            console.error('Failed to send chat message');
+                        }
+                        chatMessageInput.value = ''; // Clear input after sending
+                    }).catch(error => {
+                        console.error('Error sending chat message:', error);
+                    });
+                }
             });
         </script>
     </div>

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"io"
 	"log"
 	"net"
 	"time"
@@ -35,6 +36,22 @@ func (s *server) StreamCounter(in *pb.CounterRequest, stream pb.Greeter_StreamCo
 		time.Sleep(time.Second)
 	}
 	return nil
+}
+
+func (s *server) Chat(stream pb.Greeter_ChatServer) error {
+	for {
+		in, err := stream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		log.Printf("Chat message from %s: %s", in.GetUser(), in.GetMessage())
+		if err := stream.Send(&pb.ChatMessage{User: "Server", Message: "Echo: " + in.GetMessage()}); err != nil {
+			return err
+		}
+	}
 }
 
 func main() {

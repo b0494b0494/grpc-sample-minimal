@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"sync"
 	"time"
 
 	"google.golang.org/grpc"
@@ -28,6 +29,8 @@ func main() {
 	http.HandleFunc("/", indexHandler)
 	http.HandleFunc("/greet", greetHandler)
 	http.HandleFunc("/stream-counter", streamCounterHandler)
+	http.HandleFunc("/chat-stream", chatStreamHandler)
+	http.HandleFunc("/send-chat", sendChatHandler)
 
 	log.Printf("Web server listening on port %s", webPort)
 	log.Fatal(http.ListenAndServe(webPort, nil))
@@ -112,4 +115,100 @@ func streamCounterHandler(w http.ResponseWriter, r *http.Request) {
 			flusher.Flush()
 		}
 	}
+}
+
+var chatClients = make(map[chan string]bool)
+var chatClientsMutex = &sync.Mutex{}
+
+func chatStreamHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+
+	messageChan := make(chan string)
+
+	chatClientsMutex.Lock()
+	chatClients[messageChan] = true
+	chatClientsMutex.Unlock()
+
+	defer func() {
+		chatClientsMutex.Lock()
+		delete(chatClients, messageChan)
+		chatClientsMutex.Unlock()
+		close(messageChan)
+	}()
+
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "Streaming unsupported!", http.StatusInternalServerError)
+		return
+	}
+
+	for {
+		select {
+		case msg := <-messageChan:
+			fmt.Fprintf(w, "data: %s\n\n", msg)
+			flusher.Flush()
+		case <-r.Context().Done():
+			return
+		}
+	}
+}
+
+func sendChatHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+
+	user := r.FormValue("user")
+	message := r.FormValue("message")
+
+	if user == "" || message == "" {
+		http.Error(w, "User and message cannot be empty", http.StatusBadRequest)
+		return
+	}
+
+	conn, err := grpc.Dial(grpcAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Printf("did not connect to gRPC server: %v", err)
+		http.Error(w, "Failed to connect to gRPC server", http.StatusInternalServerError)
+		return
+	}
+	defer conn.Close()
+	c := pb.NewGreeterClient(conn)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	stream, err := c.Chat(ctx)
+	if err != nil {
+		log.Printf("could not open chat stream: %v", err)
+		http.Error(w, "Failed to open chat stream", http.StatusInternalServerError)
+		return
+	}
+
+	// Send message to gRPC server
+	if err := stream.Send(&pb.ChatMessage{User: user, Message: message}); err != nil {
+		log.Printf("failed to send chat message to gRPC server: %v", err)
+		http.Error(w, "Failed to send chat message", http.StatusInternalServerError)
+		return
+	}
+
+	// Receive echo from gRPC server and broadcast to web clients
+	reply, err := stream.Recv()
+	if err != nil {
+		log.Printf("failed to receive chat message from gRPC server: %v", err)
+		http.Error(w, "Failed to receive chat message", http.StatusInternalServerError)
+		return
+	}
+
+	fullMessage := fmt.Sprintf("%s: %s (echoed by server)", reply.GetUser(), reply.GetMessage())
+	chatClientsMutex.Lock()
+	for clientChan := range chatClients {
+		clientChan <- fullMessage
+	}
+	chatClientsMutex.Unlock()
+
+	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
