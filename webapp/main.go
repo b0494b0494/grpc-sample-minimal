@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"html/template"
 	"io"
 	"log"
 	"net/http"
@@ -12,57 +12,73 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
 	pb "grpc-sample-minimal/proto"
 )
 
 const (
 	grpcAddress = "server:50051"
 	webPort     = ":8080"
+	authToken = "my-secret-token"
 )
 
-type PageData struct {
-	Greeting string
-	Error    string
-}
+var chatClients = make(map[chan string]bool)
+var chatClientsMutex = &sync.Mutex{}
 
 func main() {
-	http.HandleFunc("/", indexHandler)
-	http.HandleFunc("/greet", greetHandler)
-	http.HandleFunc("/stream-counter", streamCounterHandler)
-	http.HandleFunc("/chat-stream", chatStreamHandler)
-	http.HandleFunc("/send-chat", sendChatHandler)
+	// Serve static React files
+	http.Handle("/", http.FileServer(http.Dir("webapp/build")))
+
+	// API endpoints for gRPC calls
+	http.HandleFunc("/api/greet", greetHandler)
+	http.HandleFunc("/api/stream-counter", streamCounterHandler)
+	http.HandleFunc("/api/chat-stream", chatStreamHandler)
+	http.HandleFunc("/api/send-chat", sendChatHandler)
 
 	log.Printf("Web server listening on port %s", webPort)
 	log.Fatal(http.ListenAndServe(webPort, nil))
 }
 
-func indexHandler(w http.ResponseWriter, r *http.Request) {
-	tmpl := template.Must(template.ParseFiles("webapp/index.html"))
-	tmpl.Execute(w, PageData{})
+func getGrpcClient(ctx context.Context) (pb.GreeterClient, *grpc.ClientConn, error) {
+	conn, err := grpc.Dial(grpcAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return nil, nil, fmt.Errorf("did not connect to gRPC server: %w", err)
+	}
+	c := pb.NewGreeterClient(conn)
+	return c, conn, nil
 }
 
 func greetHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Redirect(w, r, "/", http.StatusSeeOther)
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	name := r.FormValue("name")
+	var req struct {
+		Name string `json:"name"`
+	} 
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	name := req.Name
 	if name == "" {
 		name = "world"
 	}
 
-	conn, err := grpc.Dial(grpcAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	c, conn, err := getGrpcClient(r.Context())
 	if err != nil {
-		log.Printf("did not connect to gRPC server: %v", err)
+		log.Printf("Error getting gRPC client: %v", err)
 		http.Error(w, "Failed to connect to gRPC server", http.StatusInternalServerError)
 		return
 	}
 	defer conn.Close()
-	c := pb.NewGreeterClient(conn)
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), time.Second)
 	defer cancel()
+	ctx = metadata.AppendToOutgoingContext(ctx, "authorization", authToken)
+
 	reply, err := c.SayHello(ctx, &pb.HelloRequest{Name: name})
 	if err != nil {
 		log.Printf("could not greet: %v", err)
@@ -70,8 +86,8 @@ func greetHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tmpl := template.Must(template.ParseFiles("webapp/index.html"))
-	tmpl.Execute(w, PageData{Greeting: reply.GetMessage()})
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"greeting": reply.GetMessage()})
 }
 
 func streamCounterHandler(w http.ResponseWriter, r *http.Request) {
@@ -79,17 +95,17 @@ func streamCounterHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 
-	conn, err := grpc.Dial(grpcAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	c, conn, err := getGrpcClient(r.Context())
 	if err != nil {
-		log.Printf("did not connect to gRPC server: %v", err)
+		log.Printf("Error getting gRPC client: %v", err)
 		fmt.Fprintf(w, "event: error\ndata: Failed to connect to gRPC server\n\n")
 		return
 	}
 	defer conn.Close()
-	c := pb.NewGreeterClient(conn)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // Increased timeout for streaming
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second) // Increased timeout for streaming
 	defer cancel()
+	ctx = metadata.AppendToOutgoingContext(ctx, "authorization", authToken)
 
 	stream, err := c.StreamCounter(ctx, &pb.CounterRequest{Limit: 10})
 	if err != nil {
@@ -116,9 +132,6 @@ func streamCounterHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 }
-
-var chatClients = make(map[chan string]bool)
-var chatClientsMutex = &sync.Mutex{}
 
 func chatStreamHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/event-stream")
@@ -157,29 +170,38 @@ func chatStreamHandler(w http.ResponseWriter, r *http.Request) {
 
 func sendChatHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Redirect(w, r, "/", http.StatusSeeOther)
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	user := r.FormValue("user")
-	message := r.FormValue("message")
+	var req struct {
+		User string `json:"user"`
+		Message string `json:"message"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	user := req.User
+	message := req.Message
 
 	if user == "" || message == "" {
 		http.Error(w, "User and message cannot be empty", http.StatusBadRequest)
 		return
 	}
 
-	conn, err := grpc.Dial(grpcAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	c, conn, err := getGrpcClient(r.Context())
 	if err != nil {
-		log.Printf("did not connect to gRPC server: %v", err)
+		log.Printf("Error getting gRPC client: %v", err)
 		http.Error(w, "Failed to connect to gRPC server", http.StatusInternalServerError)
 		return
 	}
 	defer conn.Close()
-	c := pb.NewGreeterClient(conn)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
+	ctx = metadata.AppendToOutgoingContext(ctx, "authorization", authToken)
 
 	stream, err := c.Chat(ctx)
 	if err != nil {
@@ -210,5 +232,5 @@ func sendChatHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	chatClientsMutex.Unlock()
 
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	w.WriteHeader(http.StatusOK)
 }

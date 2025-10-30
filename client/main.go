@@ -10,30 +10,56 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
 	pb "grpc-sample-minimal/proto"
 )
 
 const (
 	address     = "server:50051"
 	defaultName = "world"
+	authToken = "my-secret-token"
 )
+
+// loggingClientInterceptor is a unary interceptor that logs RPC calls.
+func loggingClientInterceptor(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+	log.Printf("Outgoing RPC: %s, Request: %v", method, req)
+	err := invoker(ctx, method, req, reply, cc, opts...)
+	log.Printf("Incoming RPC: %s, Response: %v, Error: %v", method, reply, err)
+	return err
+}
+
+// loggingClientStreamInterceptor is a stream interceptor that logs RPC calls.
+func loggingClientStreamInterceptor(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, streamer grpc.Streamer, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+	log.Printf("Outgoing stream RPC: %s", method)
+	s, err := streamer(ctx, desc, cc, method, opts...)
+	log.Printf("Incoming stream RPC: %s, Error: %v", method, err)
+	return s, err
+}
 
 func main() {
 	// Set up a connection to the server.
-	conn, err := grpc.Dial(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.Dial(address,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithChainUnaryInterceptor(loggingClientInterceptor),
+		grpc.WithChainStreamInterceptor(loggingClientStreamInterceptor),
+	)
 	if err != nil {
 		log.Fatalf("did not connect: %v", err)
 	}
 	defer conn.Close()
 	c := pb.NewGreeterClient(conn)
 
+	// Add auth token to context
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	ctx = metadata.AppendToOutgoingContext(ctx, "authorization", authToken)
+
 	// Contact the server and print out its response.
 	name := defaultName
 	if len(os.Args) > 1 {
 		name = os.Args[1]
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+
 	r, err := c.SayHello(ctx, &pb.HelloRequest{Name: name})
 	if err != nil {
 		log.Fatalf("could not greet: %v", err)
