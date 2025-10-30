@@ -72,13 +72,3 @@ This application uses Docker Compose for easy setup and execution.
     ```bash
     docker-compose down
     ```
-
-## Exploring Further
-
-This sample provides a basic foundation. You can extend it by:
-
-- Implementing more complex RPC types (server-side streaming, client-side streaming, bidirectional streaming).
-- Adding error handling and gRPC status codes.
-- Incorporating metadata, authentication, or authorization.
-- Exploring interceptors for logging or metrics.
-- Using different data types in your `.proto` definitions.

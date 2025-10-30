@@ -34,6 +34,8 @@ func main() {
 	http.HandleFunc("/api/stream-counter", streamCounterHandler)
 	http.HandleFunc("/api/chat-stream", chatStreamHandler)
 	http.HandleFunc("/api/send-chat", sendChatHandler)
+	http.HandleFunc("/api/upload-file", uploadFileHandler)
+	http.HandleFunc("/api/download-file", downloadFileHandler)
 
 	log.Printf("Web server listening on port %s", webPort)
 	log.Fatal(http.ListenAndServe(webPort, nil))
@@ -232,5 +234,122 @@ func sendChatHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	chatClientsMutex.Unlock()
 
+	w.WriteHeader(http.StatusOK)
+}
+
+func uploadFileHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	file, header, err := r.FormFile("uploadFile")
+	if err != nil {
+		http.Error(w, "Error retrieving the file", http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	c, conn, err := getGrpcClient(r.Context())
+	if err != nil {
+		log.Printf("Error getting gRPC client: %v", err)
+		http.Error(w, "Failed to connect to gRPC server", http.StatusInternalServerError)
+		return
+	}
+	defer conn.Close()
+
+	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second) // Long timeout for large files
+	defer cancel()
+	ctx = metadata.AppendToOutgoingContext(ctx, "authorization", authToken)
+
+	stream, err := c.UploadFile(ctx)
+	if err != nil {
+		log.Printf("could not open upload stream: %v", err)
+		http.Error(w, "Failed to open upload stream", http.StatusInternalServerError)
+		return
+	}
+
+	buf := make([]byte, 1024)
+	for {
+		n, err := file.Read(buf)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			http.Error(w, "Error reading file", http.StatusInternalServerError)
+			return
+		}
+	
+		if err := stream.Send(&pb.FileChunk{Content: buf[:n], Filename: header.Filename, Filesize: header.Size}); err != nil {
+			http.Error(w, "Error sending file chunk", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	reply, err := stream.CloseAndRecv()
+	if err != nil {
+		log.Printf("failed to receive upload status: %v", err)
+		http.Error(w, "Failed to get upload status", http.StatusInternalServerError)
+		return
+	}
+
+	if !reply.GetSuccess() {
+		http.Error(w, reply.GetMessage(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"message": reply.GetMessage(), "filename": reply.GetFilename(), "bytesWritten": fmt.Sprintf("%d", reply.GetBytesWritten())})
+}
+
+func downloadFileHandler(w http.ResponseWriter, r *http.Request) {
+	filename := r.URL.Query().Get("filename")
+	if filename == "" {
+		http.Error(w, "Filename is required", http.StatusBadRequest)
+		return
+	}
+
+	c, conn, err := getGrpcClient(r.Context())
+	if err != nil {
+		log.Printf("Error getting gRPC client: %v", err)
+		http.Error(w, "Failed to connect to gRPC server", http.StatusInternalServerError)
+		return
+	}
+	defer conn.Close()
+
+	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second) // Long timeout for large files
+	defer cancel()
+	ctx = metadata.AppendToOutgoingContext(ctx, "authorization", authToken)
+
+	stream, err := c.DownloadFile(ctx, &pb.FileDownloadRequest{Filename: filename})
+	if err != nil {
+		log.Printf("could not open download stream: %v", err)
+		http.Error(w, "Failed to open download stream", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
+
+	for {
+		chunk, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			log.Printf("error while receiving file chunk: %v", err)
+			http.Error(w, "Error receiving file chunk", http.StatusInternalServerError)
+			return
+		}
+
+		if _, err := w.Write(chunk.GetContent()); err != nil {
+			log.Printf("error writing file chunk to http response: %v", err)
+			return
+		}
+		flusher, ok := w.(http.Flusher)
+		if ok {
+			flusher.Flush()
+		}
+	}
 	w.WriteHeader(http.StatusOK)
 }

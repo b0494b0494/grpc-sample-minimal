@@ -117,4 +117,60 @@ func main() {
 	chatStream.CloseSend()
 	<-waitc
 	log.Printf("Chat finished")
+
+	// File Upload
+	log.Printf("Uploading file: test.txt")
+	uploadFile(ctx, c, "test.txt", []byte("This is a test file content."))
+
+	// File Download
+	log.Printf("Downloading file: test.txt")
+	downloadFile(ctx, c, "test.txt")
+}
+
+func uploadFile(ctx context.Context, c pb.GreeterClient, filename string, content []byte) {
+	stream, err := c.UploadFile(ctx)
+	if err != nil {
+		log.Fatalf("could not open upload stream: %v", err)
+	}
+
+	fileSize := int64(len(content))
+	chunkSize := 1024 // 1KB
+
+	for i := 0; i < len(content); i += chunkSize {
+		end := i + chunkSize
+		if end > len(content) {
+			end = len(content)
+		}
+		chunk := content[i:end]
+
+		if err := stream.Send(&pb.FileChunk{Content: chunk, Filename: filename, Filesize: fileSize}); err != nil {
+			log.Fatalf("failed to send file chunk: %v", err)
+		}
+	}
+
+	reply, err := stream.CloseAndRecv()
+	if err != nil {
+		log.Fatalf("failed to receive upload status: %v", err)
+	}
+	log.Printf("File Upload Status: %v", reply)
+}
+
+func downloadFile(ctx context.Context, c pb.GreeterClient, filename string) {
+	stream, err := c.DownloadFile(ctx, &pb.FileDownloadRequest{Filename: filename})
+	if err != nil {
+		log.Fatalf("could not open download stream: %v", err)
+	}
+
+	var downloadedContent []byte
+	for {
+		chunk, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			log.Fatalf("error while receiving file chunk: %v", err)
+		}
+		downloadedContent = append(downloadedContent, chunk.GetContent()...)
+	}
+	log.Printf("File Downloaded: %s, Size: %d, Content: %s", filename, len(downloadedContent), string(downloadedContent))
 }

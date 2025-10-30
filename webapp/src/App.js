@@ -10,6 +10,10 @@ function App() {
   const [chatUser, setChatUser] = useState('Anonymous');
   const [chatMessageInput, setChatMessageInput] = useState('');
   const [chatMessages, setChatMessages] = useState([]);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [uploadStatus, setUploadStatus] = useState('');
+  const [downloadFilename, setDownloadFilename] = useState('');
+  const [downloadStatus, setDownloadStatus] = useState('');
 
   // Unary RPC: SayHello
   const handleSayHello = async (e) => {
@@ -96,6 +100,68 @@ function App() {
     }
   };
 
+  // File Upload
+  const handleFileChange = (e) => {
+    setSelectedFile(e.target.files[0]);
+  };
+
+  const handleFileUpload = async (e) => {
+    e.preventDefault();
+    if (!selectedFile) {
+      setUploadStatus('Please select a file first.');
+      return;
+    }
+
+    setUploadStatus('Uploading...');
+    const formData = new FormData();
+    formData.append('uploadFile', selectedFile);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/upload-file`, {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setUploadStatus(`Upload successful: ${data.message} (${data.bytesWritten} bytes)`);
+      } else {
+        setUploadStatus(`Upload failed: ${data.error || response.statusText}`);
+      }
+    } catch (error) {
+      setUploadStatus(`Network Error: ${error.message}`);
+    }
+  };
+
+  // File Download
+  const handleFileDownload = async (e) => {
+    e.preventDefault();
+    if (!downloadFilename) {
+      setDownloadStatus('Please enter a filename.');
+      return;
+    }
+
+    setDownloadStatus('Downloading...');
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/download-file?filename=${encodeURIComponent(downloadFilename)}`);
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = downloadFilename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+        setDownloadStatus('Download successful.');
+      } else {
+        setDownloadStatus(`Download failed: ${response.statusText}`);
+      }
+    } catch (error) {
+      setDownloadStatus(`Network Error: ${error.message}`);
+    }
+  };
+
   return (
     <div style={{ fontFamily: 'Arial, sans-serif', margin: '20px' }}>
       <div style={{ maxWidth: '600px', margin: 'auto', padding: '20px', border: '1px solid #ccc', borderRadius: '8px' }}>
@@ -152,6 +218,25 @@ function App() {
           </button>
         </form>
       </div>
+
+      <h2>File Upload</h2>
+      <form onSubmit={handleFileUpload}>
+        <input type="file" onChange={handleFileChange} />
+        <button type="submit">Upload File</button>
+        {uploadStatus && <p>{uploadStatus}</p>}
+      </form>
+
+      <h2>File Download</h2>
+      <form onSubmit={handleFileDownload}>
+        <input
+          type="text"
+          value={downloadFilename}
+          onChange={(e) => setDownloadFilename(e.target.value)}
+          placeholder="Enter filename to download"
+        />
+        <button type="submit">Download File</button>
+        {downloadStatus && <p>{downloadStatus}</p>}
+      </form>
     </div>
   );
 }

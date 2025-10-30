@@ -22,6 +22,8 @@ const (
 	Greeter_SayHello_FullMethodName      = "/proto.Greeter/SayHello"
 	Greeter_StreamCounter_FullMethodName = "/proto.Greeter/StreamCounter"
 	Greeter_Chat_FullMethodName          = "/proto.Greeter/Chat"
+	Greeter_UploadFile_FullMethodName    = "/proto.Greeter/UploadFile"
+	Greeter_DownloadFile_FullMethodName  = "/proto.Greeter/DownloadFile"
 )
 
 // GreeterClient is the client API for Greeter service.
@@ -34,6 +36,8 @@ type GreeterClient interface {
 	SayHello(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (*HelloReply, error)
 	StreamCounter(ctx context.Context, in *CounterRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[CounterReply], error)
 	Chat(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[ChatMessage, ChatMessage], error)
+	UploadFile(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[FileChunk, FileUploadStatus], error)
+	DownloadFile(ctx context.Context, in *FileDownloadRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[FileChunk], error)
 }
 
 type greeterClient struct {
@@ -86,6 +90,38 @@ func (c *greeterClient) Chat(ctx context.Context, opts ...grpc.CallOption) (grpc
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type Greeter_ChatClient = grpc.BidiStreamingClient[ChatMessage, ChatMessage]
 
+func (c *greeterClient) UploadFile(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[FileChunk, FileUploadStatus], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &Greeter_ServiceDesc.Streams[2], Greeter_UploadFile_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[FileChunk, FileUploadStatus]{ClientStream: stream}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type Greeter_UploadFileClient = grpc.ClientStreamingClient[FileChunk, FileUploadStatus]
+
+func (c *greeterClient) DownloadFile(ctx context.Context, in *FileDownloadRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[FileChunk], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &Greeter_ServiceDesc.Streams[3], Greeter_DownloadFile_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[FileDownloadRequest, FileChunk]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type Greeter_DownloadFileClient = grpc.ServerStreamingClient[FileChunk]
+
 // GreeterServer is the server API for Greeter service.
 // All implementations must embed UnimplementedGreeterServer
 // for forward compatibility.
@@ -96,6 +132,8 @@ type GreeterServer interface {
 	SayHello(context.Context, *HelloRequest) (*HelloReply, error)
 	StreamCounter(*CounterRequest, grpc.ServerStreamingServer[CounterReply]) error
 	Chat(grpc.BidiStreamingServer[ChatMessage, ChatMessage]) error
+	UploadFile(grpc.ClientStreamingServer[FileChunk, FileUploadStatus]) error
+	DownloadFile(*FileDownloadRequest, grpc.ServerStreamingServer[FileChunk]) error
 	mustEmbedUnimplementedGreeterServer()
 }
 
@@ -114,6 +152,12 @@ func (UnimplementedGreeterServer) StreamCounter(*CounterRequest, grpc.ServerStre
 }
 func (UnimplementedGreeterServer) Chat(grpc.BidiStreamingServer[ChatMessage, ChatMessage]) error {
 	return status.Errorf(codes.Unimplemented, "method Chat not implemented")
+}
+func (UnimplementedGreeterServer) UploadFile(grpc.ClientStreamingServer[FileChunk, FileUploadStatus]) error {
+	return status.Errorf(codes.Unimplemented, "method UploadFile not implemented")
+}
+func (UnimplementedGreeterServer) DownloadFile(*FileDownloadRequest, grpc.ServerStreamingServer[FileChunk]) error {
+	return status.Errorf(codes.Unimplemented, "method DownloadFile not implemented")
 }
 func (UnimplementedGreeterServer) mustEmbedUnimplementedGreeterServer() {}
 func (UnimplementedGreeterServer) testEmbeddedByValue()                 {}
@@ -172,6 +216,24 @@ func _Greeter_Chat_Handler(srv interface{}, stream grpc.ServerStream) error {
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type Greeter_ChatServer = grpc.BidiStreamingServer[ChatMessage, ChatMessage]
 
+func _Greeter_UploadFile_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(GreeterServer).UploadFile(&grpc.GenericServerStream[FileChunk, FileUploadStatus]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type Greeter_UploadFileServer = grpc.ClientStreamingServer[FileChunk, FileUploadStatus]
+
+func _Greeter_DownloadFile_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(FileDownloadRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(GreeterServer).DownloadFile(m, &grpc.GenericServerStream[FileDownloadRequest, FileChunk]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type Greeter_DownloadFileServer = grpc.ServerStreamingServer[FileChunk]
+
 // Greeter_ServiceDesc is the grpc.ServiceDesc for Greeter service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -195,6 +257,16 @@ var Greeter_ServiceDesc = grpc.ServiceDesc{
 			Handler:       _Greeter_Chat_Handler,
 			ServerStreams: true,
 			ClientStreams: true,
+		},
+		{
+			StreamName:    "UploadFile",
+			Handler:       _Greeter_UploadFile_Handler,
+			ClientStreams: true,
+		},
+		{
+			StreamName:    "DownloadFile",
+			Handler:       _Greeter_DownloadFile_Handler,
+			ServerStreams: true,
 		},
 	},
 	Metadata: "proto/greeter.proto",

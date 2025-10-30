@@ -9,31 +9,53 @@ service Greeter {
   // Sends a greeting
     rpc SayHello (HelloRequest) returns (HelloReply) {}
       rpc StreamCounter (CounterRequest) returns (stream CounterReply) {}
-      rpc Chat (stream ChatMessage) returns (stream ChatMessage) {}
-    }
-    
-    // The request message containing the user's name.
-    message HelloRequest {
-      string name = 1;
-    }
-    
-    // The response message containing the greetings
-    message HelloReply {
-      string message = 1;
-    }
-    
-    // The request message for the counter stream.
-    message CounterRequest {
-      int32 limit = 1;
-    }
-    
-    // The response message for the counter stream.
-    message CounterReply {
-      int32 count = 1;
-    }
-    
-    // The message type for chat communication.
-    message ChatMessage {
-      string user = 1;
-      string message = 2;
-    }
+        rpc Chat (stream ChatMessage) returns (stream ChatMessage) {}
+        rpc UploadFile (stream FileChunk) returns (FileUploadStatus) {}
+        rpc DownloadFile (FileDownloadRequest) returns (stream FileChunk) {}
+      }
+      
+      // The request message containing the user's name.
+      message HelloRequest {
+        string name = 1;
+      }
+      
+      // The response message containing the greetings
+      message HelloReply {
+        string message = 1;
+      }
+      
+      // The request message for the counter stream.
+      message CounterRequest {
+        int32 limit = 1;
+      }
+      
+      // The response message for the counter stream.
+      message CounterReply {
+        int32 count = 1;
+      }
+      
+      // The message type for chat communication.
+      message ChatMessage {
+        string user = 1;
+        string message = 2;
+      }
+      
+      // Message for file chunks during upload/download.
+      message FileChunk {
+        bytes content = 1;
+        string filename = 2;
+        int64 filesize = 3;
+      }
+      
+      // Message for file upload status.
+      message FileUploadStatus {
+        string filename = 1;
+        int64 bytes_written = 2;
+        bool success = 3;
+        string message = 4;
+      }
+      
+      // Message for file download request.
+      message FileDownloadRequest {
+        string filename = 1;
+      }

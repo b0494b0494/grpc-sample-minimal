@@ -89,6 +89,14 @@ func (s *server) Chat(stream pb.Greeter_ChatServer) error {
 	return s.appService.Chat(stream)
 }
 
+func (s *server) UploadFile(stream pb.Greeter_UploadFileServer) error {
+	return s.appService.UploadFile(stream)
+}
+
+func (s *server) DownloadFile(req *pb.FileDownloadRequest, stream pb.Greeter_DownloadFileServer) error {
+	return s.appService.DownloadFile(req, stream)
+}
+
 func main() {
 	domainService := domain.NewGreeterService()
 	appService := application.NewApplicationService(domainService)

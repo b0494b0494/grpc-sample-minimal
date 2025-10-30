@@ -254,6 +254,181 @@ func (x *ChatMessage) GetMessage() string {
 	return ""
 }
 
+// Message for file chunks during upload/download.
+type FileChunk struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Content       []byte                 `protobuf:"bytes,1,opt,name=content,proto3" json:"content,omitempty"`
+	Filename      string                 `protobuf:"bytes,2,opt,name=filename,proto3" json:"filename,omitempty"`
+	Filesize      int64                  `protobuf:"varint,3,opt,name=filesize,proto3" json:"filesize,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FileChunk) Reset() {
+	*x = FileChunk{}
+	mi := &file_proto_greeter_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FileChunk) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FileChunk) ProtoMessage() {}
+
+func (x *FileChunk) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_greeter_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FileChunk.ProtoReflect.Descriptor instead.
+func (*FileChunk) Descriptor() ([]byte, []int) {
+	return file_proto_greeter_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *FileChunk) GetContent() []byte {
+	if x != nil {
+		return x.Content
+	}
+	return nil
+}
+
+func (x *FileChunk) GetFilename() string {
+	if x != nil {
+		return x.Filename
+	}
+	return ""
+}
+
+func (x *FileChunk) GetFilesize() int64 {
+	if x != nil {
+		return x.Filesize
+	}
+	return 0
+}
+
+// Message for file upload status.
+type FileUploadStatus struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Filename      string                 `protobuf:"bytes,1,opt,name=filename,proto3" json:"filename,omitempty"`
+	BytesWritten  int64                  `protobuf:"varint,2,opt,name=bytes_written,json=bytesWritten,proto3" json:"bytes_written,omitempty"`
+	Success       bool                   `protobuf:"varint,3,opt,name=success,proto3" json:"success,omitempty"`
+	Message       string                 `protobuf:"bytes,4,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FileUploadStatus) Reset() {
+	*x = FileUploadStatus{}
+	mi := &file_proto_greeter_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FileUploadStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FileUploadStatus) ProtoMessage() {}
+
+func (x *FileUploadStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_greeter_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FileUploadStatus.ProtoReflect.Descriptor instead.
+func (*FileUploadStatus) Descriptor() ([]byte, []int) {
+	return file_proto_greeter_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *FileUploadStatus) GetFilename() string {
+	if x != nil {
+		return x.Filename
+	}
+	return ""
+}
+
+func (x *FileUploadStatus) GetBytesWritten() int64 {
+	if x != nil {
+		return x.BytesWritten
+	}
+	return 0
+}
+
+func (x *FileUploadStatus) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *FileUploadStatus) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+// Message for file download request.
+type FileDownloadRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Filename      string                 `protobuf:"bytes,1,opt,name=filename,proto3" json:"filename,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FileDownloadRequest) Reset() {
+	*x = FileDownloadRequest{}
+	mi := &file_proto_greeter_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FileDownloadRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FileDownloadRequest) ProtoMessage() {}
+
+func (x *FileDownloadRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_greeter_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FileDownloadRequest.ProtoReflect.Descriptor instead.
+func (*FileDownloadRequest) Descriptor() ([]byte, []int) {
+	return file_proto_greeter_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *FileDownloadRequest) GetFilename() string {
+	if x != nil {
+		return x.Filename
+	}
+	return ""
+}
+
 var File_proto_greeter_proto protoreflect.FileDescriptor
 
 const file_proto_greeter_proto_rawDesc = "" +
@@ -270,11 +445,25 @@ const file_proto_greeter_proto_rawDesc = "" +
 	"\x05count\x18\x01 \x01(\x05R\x05count\";\n" +
 	"\vChatMessage\x12\x12\n" +
 	"\x04user\x18\x01 \x01(\tR\x04user\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage2\xb6\x01\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"]\n" +
+	"\tFileChunk\x12\x18\n" +
+	"\acontent\x18\x01 \x01(\fR\acontent\x12\x1a\n" +
+	"\bfilename\x18\x02 \x01(\tR\bfilename\x12\x1a\n" +
+	"\bfilesize\x18\x03 \x01(\x03R\bfilesize\"\x87\x01\n" +
+	"\x10FileUploadStatus\x12\x1a\n" +
+	"\bfilename\x18\x01 \x01(\tR\bfilename\x12#\n" +
+	"\rbytes_written\x18\x02 \x01(\x03R\fbytesWritten\x12\x18\n" +
+	"\asuccess\x18\x03 \x01(\bR\asuccess\x12\x18\n" +
+	"\amessage\x18\x04 \x01(\tR\amessage\"1\n" +
+	"\x13FileDownloadRequest\x12\x1a\n" +
+	"\bfilename\x18\x01 \x01(\tR\bfilename2\xb5\x02\n" +
 	"\aGreeter\x124\n" +
 	"\bSayHello\x12\x13.proto.HelloRequest\x1a\x11.proto.HelloReply\"\x00\x12?\n" +
 	"\rStreamCounter\x12\x15.proto.CounterRequest\x1a\x13.proto.CounterReply\"\x000\x01\x124\n" +
-	"\x04Chat\x12\x12.proto.ChatMessage\x1a\x12.proto.ChatMessage\"\x00(\x010\x01B\x1bZ\x19grpc-sample-minimal/protob\x06proto3"
+	"\x04Chat\x12\x12.proto.ChatMessage\x1a\x12.proto.ChatMessage\"\x00(\x010\x01\x12;\n" +
+	"\n" +
+	"UploadFile\x12\x10.proto.FileChunk\x1a\x17.proto.FileUploadStatus\"\x00(\x01\x12@\n" +
+	"\fDownloadFile\x12\x1a.proto.FileDownloadRequest\x1a\x10.proto.FileChunk\"\x000\x01B\x1bZ\x19grpc-sample-minimal/protob\x06proto3"
 
 var (
 	file_proto_greeter_proto_rawDescOnce sync.Once
@@ -288,23 +477,30 @@ func file_proto_greeter_proto_rawDescGZIP() []byte {
 	return file_proto_greeter_proto_rawDescData
 }
 
-var file_proto_greeter_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_proto_greeter_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_proto_greeter_proto_goTypes = []any{
-	(*HelloRequest)(nil),   // 0: proto.HelloRequest
-	(*HelloReply)(nil),     // 1: proto.HelloReply
-	(*CounterRequest)(nil), // 2: proto.CounterRequest
-	(*CounterReply)(nil),   // 3: proto.CounterReply
-	(*ChatMessage)(nil),    // 4: proto.ChatMessage
+	(*HelloRequest)(nil),        // 0: proto.HelloRequest
+	(*HelloReply)(nil),          // 1: proto.HelloReply
+	(*CounterRequest)(nil),      // 2: proto.CounterRequest
+	(*CounterReply)(nil),        // 3: proto.CounterReply
+	(*ChatMessage)(nil),         // 4: proto.ChatMessage
+	(*FileChunk)(nil),           // 5: proto.FileChunk
+	(*FileUploadStatus)(nil),    // 6: proto.FileUploadStatus
+	(*FileDownloadRequest)(nil), // 7: proto.FileDownloadRequest
 }
 var file_proto_greeter_proto_depIdxs = []int32{
 	0, // 0: proto.Greeter.SayHello:input_type -> proto.HelloRequest
 	2, // 1: proto.Greeter.StreamCounter:input_type -> proto.CounterRequest
 	4, // 2: proto.Greeter.Chat:input_type -> proto.ChatMessage
-	1, // 3: proto.Greeter.SayHello:output_type -> proto.HelloReply
-	3, // 4: proto.Greeter.StreamCounter:output_type -> proto.CounterReply
-	4, // 5: proto.Greeter.Chat:output_type -> proto.ChatMessage
-	3, // [3:6] is the sub-list for method output_type
-	0, // [0:3] is the sub-list for method input_type
+	5, // 3: proto.Greeter.UploadFile:input_type -> proto.FileChunk
+	7, // 4: proto.Greeter.DownloadFile:input_type -> proto.FileDownloadRequest
+	1, // 5: proto.Greeter.SayHello:output_type -> proto.HelloReply
+	3, // 6: proto.Greeter.StreamCounter:output_type -> proto.CounterReply
+	4, // 7: proto.Greeter.Chat:output_type -> proto.ChatMessage
+	6, // 8: proto.Greeter.UploadFile:output_type -> proto.FileUploadStatus
+	5, // 9: proto.Greeter.DownloadFile:output_type -> proto.FileChunk
+	5, // [5:10] is the sub-list for method output_type
+	0, // [0:5] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
@@ -321,7 +517,7 @@ func file_proto_greeter_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_greeter_proto_rawDesc), len(file_proto_greeter_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

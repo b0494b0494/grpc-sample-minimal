@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"time"
 
 	pb "grpc-sample-minimal/proto"
@@ -13,6 +14,8 @@ type GreeterService interface {
 	SayHello(ctx context.Context, name string) (string, error)
 	StreamCounter(ctx context.Context, limit int32, stream pb.Greeter_StreamCounterServer) error
 	Chat(stream pb.Greeter_ChatServer) error
+	UploadFile(stream pb.Greeter_UploadFileServer) error
+	DownloadFile(req *pb.FileDownloadRequest, stream pb.Greeter_DownloadFileServer) error
 }
 
 type greeterService struct{}
@@ -54,4 +57,67 @@ func (s *greeterService) Chat(stream pb.Greeter_ChatServer) error {
 			return err
 		}
 	}
+}
+
+func (s *greeterService) UploadFile(stream pb.Greeter_UploadFileServer) error {
+	var file *os.File
+	var filename string
+	var bytesWritten int64
+
+	for {
+		chunk, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+
+		if file == nil {
+			filename = chunk.GetFilename()
+			file, err = os.Create("uploads/" + filename)
+			if err != nil {
+				return err
+			}
+			defer file.Close()
+		}
+
+		n, err := file.Write(chunk.GetContent())
+		if err != nil {
+			return err
+		}
+		bytesWritten += int64(n)
+	}
+
+	return stream.SendAndClose(&pb.FileUploadStatus{
+		Filename:    filename,
+		BytesWritten: bytesWritten,
+		Success:     true,
+		Message:     "File uploaded successfully",
+	})
+}
+
+func (s *greeterService) DownloadFile(req *pb.FileDownloadRequest, stream pb.Greeter_DownloadFileServer) error {
+	filename := req.GetFilename()
+	file, err := os.Open("uploads/" + filename)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	buf := make([]byte, 1024)
+	for {
+		n, err := file.Read(buf)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+
+		if err := stream.Send(&pb.FileChunk{Content: buf[:n]}); err != nil {
+			return err
+		}
+	}
+	return nil
 }

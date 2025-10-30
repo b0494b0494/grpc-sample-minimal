@@ -28,3 +28,11 @@ func (s *ApplicationService) StreamCounter(ctx context.Context, limit int32, str
 func (s *ApplicationService) Chat(stream proto.Greeter_ChatServer) error {
 	return s.greeterService.Chat(stream)
 }
+
+func (s *ApplicationService) UploadFile(stream proto.Greeter_UploadFileServer) error {
+	return s.greeterService.UploadFile(stream)
+}
+
+func (s *ApplicationService) DownloadFile(req *proto.FileDownloadRequest, stream proto.Greeter_DownloadFileServer) error {
+	return s.greeterService.DownloadFile(req, stream)
+}
