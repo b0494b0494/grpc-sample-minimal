@@ -32,6 +32,14 @@ This application uses Docker Compose for easy setup and execution.
     server-1  | 2025/10/30 12:52:28 server listening at [::]:50051
     server-1  | 2025/10/30 12:52:29 Received: Docker
     client-1  | 2025/10/30 12:52:29 Greeting: Hello Docker
+    client-1  | 2025/10/30 12:52:29 Calling SayHelloServerStream for Docker
+    server-1  | 2025/10/30 12:52:29 Received: Docker for server stream
+    client-1  | 2025/10/30 12:52:30 Stream Greeting: Hello Docker, count 0
+    client-1  | 2025/10/30 12:52:31 Stream Greeting: Hello Docker, count 1
+    client-1  | 2025/10/30 12:52:32 Stream Greeting: Hello Docker, count 2
+    client-1  | 2025/10/30 12:52:33 Stream Greeting: Hello Docker, count 3
+    client-1  | 2025/10/30 12:52:34 Stream Greeting: Hello Docker, count 4
+    client-1  | 2025/10/30 12:52:34 SayHelloServerStream finished
     client-1 exited with code 0
     ```
 

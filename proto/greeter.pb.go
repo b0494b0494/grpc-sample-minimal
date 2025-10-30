@@ -120,9 +120,10 @@ const file_proto_greeter_proto_rawDesc = "" +
 	"\x04name\x18\x01 \x01(\tR\x04name\"&\n" +
 	"\n" +
 	"HelloReply\x12\x18\n" +
-	"\amessage\x18\x01 \x01(\tR\amessage2?\n" +
+	"\amessage\x18\x01 \x01(\tR\amessage2\x83\x01\n" +
 	"\aGreeter\x124\n" +
-	"\bSayHello\x12\x13.proto.HelloRequest\x1a\x11.proto.HelloReply\"\x00B\x1bZ\x19grpc-sample-minimal/protob\x06proto3"
+	"\bSayHello\x12\x13.proto.HelloRequest\x1a\x11.proto.HelloReply\"\x00\x12B\n" +
+	"\x14SayHelloServerStream\x12\x13.proto.HelloRequest\x1a\x11.proto.HelloReply\"\x000\x01B\x1bZ\x19grpc-sample-minimal/protob\x06proto3"
 
 var (
 	file_proto_greeter_proto_rawDescOnce sync.Once
@@ -143,9 +144,11 @@ var file_proto_greeter_proto_goTypes = []any{
 }
 var file_proto_greeter_proto_depIdxs = []int32{
 	0, // 0: proto.Greeter.SayHello:input_type -> proto.HelloRequest
-	1, // 1: proto.Greeter.SayHello:output_type -> proto.HelloReply
-	1, // [1:2] is the sub-list for method output_type
-	0, // [0:1] is the sub-list for method input_type
+	0, // 1: proto.Greeter.SayHelloServerStream:input_type -> proto.HelloRequest
+	1, // 2: proto.Greeter.SayHello:output_type -> proto.HelloReply
+	1, // 3: proto.Greeter.SayHelloServerStream:output_type -> proto.HelloReply
+	2, // [2:4] is the sub-list for method output_type
+	0, // [0:2] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name

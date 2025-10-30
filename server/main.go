@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net"
+	"time"
 
 	"google.golang.org/grpc"
 	pb "grpc-sample-minimal/proto"
@@ -23,6 +25,18 @@ func (s *server) SayHello(ctx context.Context, in *pb.HelloRequest) (*pb.HelloRe
 	log.Printf("Received: %v", in.GetName())
 	return &pb.HelloReply{Message: "Hello " + in.GetName()},
 	 nil
+}
+
+func (s *server) SayHelloServerStream(in *pb.HelloRequest, stream pb.Greeter_SayHelloServerStreamServer) error {
+	log.Printf("Received: %v for server stream", in.GetName())
+	for i := 0; i < 5; i++ {
+		message := fmt.Sprintf("Hello %s, count %d", in.GetName(), i)
+		if err := stream.Send(&pb.HelloReply{Message: message}); err != nil {
+			return err
+		}
+		time.Sleep(time.Second)
+	}
+	return nil
 }
 
 func main() {
