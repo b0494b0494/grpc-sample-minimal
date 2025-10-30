@@ -33,13 +33,14 @@ func GetGrpcClient(ctx context.Context) (pb.GreeterClient, *grpc.ClientConn, err
 }
 
 func WriteJSONError(w http.ResponseWriter, message string, statusCode int) {
-	w.Header().Set("Content-Type", "application/json")
+    w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(statusCode)
 	json.NewEncoder(w).Encode(map[string]string{"error": message})
 }
 
 func WriteSSEError(w http.ResponseWriter, message string) {
-	fmt.Fprintf(w, "event: error\ndata: %s\n\n", message)
+    w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
+    fmt.Fprintf(w, "event: error\ndata: %s\n\n", message)
 	flusher, ok := w.(http.Flusher)
 	if ok {
 		flusher.Flush()
@@ -47,7 +48,7 @@ func WriteSSEError(w http.ResponseWriter, message string) {
 }
 
 func WriteJSON(w http.ResponseWriter, v any) {
-    w.Header().Set("Content-Type", "application/json")
+    w.Header().Set("Content-Type", "application/json; charset=utf-8")
     _ = json.NewEncoder(w).Encode(v)
 }
 
