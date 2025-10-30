@@ -9,6 +9,7 @@ RUN go get github.com/aws/aws-sdk-go-v2/config
 RUN go get github.com/aws/aws-sdk-go-v2/credentials
 RUN go get github.com/aws/aws-sdk-go-v2/service/s3
 RUN go get github.com/aws/aws-sdk-go-v2/service/s3/types
+RUN go get cloud.google.com/go/storage
 
 COPY server ./server
 COPY proto ./proto

@@ -1,12 +1,13 @@
 package application
 
 import (
-	"context"
-	"bytes"
-	"io"
+    "bytes"
+    "context"
+    "io"
 
-	"grpc-sample-minimal/proto"
-	"grpc-sample-minimal/server/domain"
+    "google.golang.org/grpc/metadata"
+    "grpc-sample-minimal/proto"
+    "grpc-sample-minimal/server/domain"
 )
 
 type ApplicationService struct {
@@ -57,7 +58,19 @@ func (s *ApplicationService) UploadFile(stream proto.Greeter_UploadFileServer) e
 		fileContent.Write(chunk.GetContent())
 	}
 
-	status, err := s.storageService.UploadFile(stream.Context(), filename, &fileContent)
+    // Choose storage provider from metadata (default: s3)
+    storage := s.storageService
+    if md, ok := metadata.FromIncomingContext(stream.Context()); ok {
+        if vals := md.Get("storage-provider"); len(vals) > 0 {
+            if vals[0] == "gcs" {
+                if gcs, err := domain.NewGCSStorageService(stream.Context()); err == nil {
+                    storage = gcs
+                }
+            }
+        }
+    }
+
+    status, err := storage.UploadFile(stream.Context(), filename, &fileContent)
 	if err != nil {
 		return err
 	}
@@ -67,7 +80,14 @@ func (s *ApplicationService) UploadFile(stream proto.Greeter_UploadFileServer) e
 }
 
 func (s *ApplicationService) DownloadFile(req *proto.FileDownloadRequest, stream proto.Greeter_DownloadFileServer) error {
-	reader, err := s.storageService.DownloadFile(stream.Context(), req.GetFilename())
+    storage := s.storageService
+    if req.GetStorageProvider() == "gcs" {
+        if gcs, err := domain.NewGCSStorageService(stream.Context()); err == nil {
+            storage = gcs
+        }
+    }
+
+    reader, err := storage.DownloadFile(stream.Context(), req.GetFilename())
 	if err != nil {
 		return err
 	}
