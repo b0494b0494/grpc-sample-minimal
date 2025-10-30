@@ -1,3 +1,5 @@
+import { GreetingResponse, ChatMessage, FileUploadStatus } from '../types';
+
 const API_BASE_URL = ''; // Proxy to Go backend
 const AUTH_TOKEN = 'my-secret-token';
 
@@ -6,7 +8,7 @@ const headers = {
   'Authorization': AUTH_TOKEN,
 };
 
-export const greetService = async (name) => {
+export const greetService = async (name: string): Promise<GreetingResponse> => {
   const response = await fetch(`${API_BASE_URL}/api/greet`, {
     method: 'POST',
     headers: headers,
@@ -15,7 +17,7 @@ export const greetService = async (name) => {
   return response.json();
 };
 
-export const streamCounterService = (onMessage, onError, onEnd) => {
+export const streamCounterService = (onMessage: (data: string) => void, onError: (event: Event) => void, onEnd: (data: string) => void): (() => void) => {
   const eventSource = new EventSource(`${API_BASE_URL}/api/stream-counter`);
 
   eventSource.onmessage = (event) => {
@@ -35,7 +37,7 @@ export const streamCounterService = (onMessage, onError, onEnd) => {
   return () => eventSource.close();
 };
 
-export const chatStreamService = (onMessage, onError) => {
+export const chatStreamService = (onMessage: (data: string) => void, onError: (event: Event) => void): (() => void) => {
   const eventSource = new EventSource(`${API_BASE_URL}/api/chat-stream`);
 
   eventSource.onmessage = (event) => {
@@ -50,7 +52,7 @@ export const chatStreamService = (onMessage, onError) => {
   return () => eventSource.close();
 };
 
-export const sendChatMessageService = async (user, message) => {
+export const sendChatMessageService = async (user: string, message: string): Promise<Response> => {
   const response = await fetch(`${API_BASE_URL}/api/send-chat`, {
     method: 'POST',
     headers: headers,
@@ -59,7 +61,7 @@ export const sendChatMessageService = async (user, message) => {
   return response;
 };
 
-export const uploadFileService = async (file) => {
+export const uploadFileService = async (file: File): Promise<FileUploadStatus> => {
   const formData = new FormData();
   formData.append('uploadFile', file);
 
@@ -73,7 +75,7 @@ export const uploadFileService = async (file) => {
   return response.json();
 };
 
-export const downloadFileService = async (filename) => {
+export const downloadFileService = async (filename: string): Promise<Response> => {
   const response = await fetch(`${API_BASE_URL}/api/download-file?filename=${encodeURIComponent(filename)}`, {
     headers: {
       'Authorization': AUTH_TOKEN,

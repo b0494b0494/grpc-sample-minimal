@@ -2,11 +2,12 @@ FROM node:18 as builder
 
 WORKDIR /app/webapp
 
-COPY webapp/package.json webapp/package-lock.json ./
+COPY webapp/package.json webapp/package-lock.json webapp/tsconfig.json ./
 RUN npm install
 
 COPY webapp/public ./public
 COPY webapp/src ./src
+RUN npm run typecheck
 RUN npm run build
 
 FROM golang:1.25.3
