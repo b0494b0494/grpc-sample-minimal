@@ -6,9 +6,19 @@ services:
       context: .
       dockerfile: Dockerfile.server
     ports:
-      - "50051:50051"
+      - "${GRPC_SERVER_PORT}:${GRPC_SERVER_PORT}"
     networks:
       - grpc-network
+    depends_on:
+      - localstack
+    environment:
+      - AUTH_TOKEN=${AUTH_TOKEN}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME}
+      - LOCALSTACK_ENDPOINT=${LOCALSTACK_ENDPOINT}
+      - GRPC_SERVER_PORT=${GRPC_SERVER_PORT}
 
   client:
     build:
@@ -19,6 +29,8 @@ services:
     networks:
       - grpc-network
     command: ["/app/client/client", "Docker"]
+    environment:
+      - AUTH_TOKEN=${AUTH_TOKEN}
 
   webapp:
     build:
@@ -28,6 +40,21 @@ services:
       - "8080:8080"
     depends_on:
       - server
+    networks:
+      - grpc-network
+    environment:
+      - AUTH_TOKEN=${AUTH_TOKEN}
+
+  localstack:
+    image: localstack/localstack:latest
+    ports:
+      - "4566:4566"  # S3
+      - "4510-4559:4510-4559" # Other services
+    environment:
+      - SERVICES=s3
+      - DEFAULT_REGION=${AWS_REGION}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
     networks:
       - grpc-network
 

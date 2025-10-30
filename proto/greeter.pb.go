@@ -317,13 +317,14 @@ func (x *FileChunk) GetFilesize() int64 {
 
 // Message for file upload status.
 type FileUploadStatus struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Filename      string                 `protobuf:"bytes,1,opt,name=filename,proto3" json:"filename,omitempty"`
-	BytesWritten  int64                  `protobuf:"varint,2,opt,name=bytes_written,json=bytesWritten,proto3" json:"bytes_written,omitempty"`
-	Success       bool                   `protobuf:"varint,3,opt,name=success,proto3" json:"success,omitempty"`
-	Message       string                 `protobuf:"bytes,4,opt,name=message,proto3" json:"message,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Filename        string                 `protobuf:"bytes,1,opt,name=filename,proto3" json:"filename,omitempty"`
+	BytesWritten    int64                  `protobuf:"varint,2,opt,name=bytes_written,json=bytesWritten,proto3" json:"bytes_written,omitempty"`
+	Success         bool                   `protobuf:"varint,3,opt,name=success,proto3" json:"success,omitempty"`
+	Message         string                 `protobuf:"bytes,4,opt,name=message,proto3" json:"message,omitempty"`
+	StorageProvider string                 `protobuf:"bytes,5,opt,name=storage_provider,json=storageProvider,proto3" json:"storage_provider,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *FileUploadStatus) Reset() {
@@ -384,12 +385,20 @@ func (x *FileUploadStatus) GetMessage() string {
 	return ""
 }
 
+func (x *FileUploadStatus) GetStorageProvider() string {
+	if x != nil {
+		return x.StorageProvider
+	}
+	return ""
+}
+
 // Message for file download request.
 type FileDownloadRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Filename      string                 `protobuf:"bytes,1,opt,name=filename,proto3" json:"filename,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Filename        string                 `protobuf:"bytes,1,opt,name=filename,proto3" json:"filename,omitempty"`
+	StorageProvider string                 `protobuf:"bytes,2,opt,name=storage_provider,json=storageProvider,proto3" json:"storage_provider,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *FileDownloadRequest) Reset() {
@@ -429,6 +438,13 @@ func (x *FileDownloadRequest) GetFilename() string {
 	return ""
 }
 
+func (x *FileDownloadRequest) GetStorageProvider() string {
+	if x != nil {
+		return x.StorageProvider
+	}
+	return ""
+}
+
 var File_proto_greeter_proto protoreflect.FileDescriptor
 
 const file_proto_greeter_proto_rawDesc = "" +
@@ -449,14 +465,16 @@ const file_proto_greeter_proto_rawDesc = "" +
 	"\tFileChunk\x12\x18\n" +
 	"\acontent\x18\x01 \x01(\fR\acontent\x12\x1a\n" +
 	"\bfilename\x18\x02 \x01(\tR\bfilename\x12\x1a\n" +
-	"\bfilesize\x18\x03 \x01(\x03R\bfilesize\"\x87\x01\n" +
+	"\bfilesize\x18\x03 \x01(\x03R\bfilesize\"\xb2\x01\n" +
 	"\x10FileUploadStatus\x12\x1a\n" +
 	"\bfilename\x18\x01 \x01(\tR\bfilename\x12#\n" +
 	"\rbytes_written\x18\x02 \x01(\x03R\fbytesWritten\x12\x18\n" +
 	"\asuccess\x18\x03 \x01(\bR\asuccess\x12\x18\n" +
-	"\amessage\x18\x04 \x01(\tR\amessage\"1\n" +
+	"\amessage\x18\x04 \x01(\tR\amessage\x12)\n" +
+	"\x10storage_provider\x18\x05 \x01(\tR\x0fstorageProvider\"\\\n" +
 	"\x13FileDownloadRequest\x12\x1a\n" +
-	"\bfilename\x18\x01 \x01(\tR\bfilename2\xb5\x02\n" +
+	"\bfilename\x18\x01 \x01(\tR\bfilename\x12)\n" +
+	"\x10storage_provider\x18\x02 \x01(\tR\x0fstorageProvider2\xb5\x02\n" +
 	"\aGreeter\x124\n" +
 	"\bSayHello\x12\x13.proto.HelloRequest\x1a\x11.proto.HelloReply\"\x00\x12?\n" +
 	"\rStreamCounter\x12\x15.proto.CounterRequest\x1a\x13.proto.CounterReply\"\x000\x01\x124\n" +

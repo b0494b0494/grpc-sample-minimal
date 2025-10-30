@@ -14,8 +14,11 @@ export interface FileUploadStatus {
   success: boolean;
   message: string;
   error?: string;
+  storageProvider?: string;
 }
 
 export interface FileDownloadRequest {
   filename: string;
+  storageProvider?: string;
 }
+

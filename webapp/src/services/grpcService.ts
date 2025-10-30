@@ -61,9 +61,10 @@ export const sendChatMessageService = async (user: string, message: string): Pro
   return response;
 };
 
-export const uploadFileService = async (file: File): Promise<FileUploadStatus> => {
+export const uploadFileService = async (file: File, storageProvider: string): Promise<FileUploadStatus> => {
   const formData = new FormData();
   formData.append('uploadFile', file);
+  formData.append('storageProvider', storageProvider);
 
   const response = await fetch(`${API_BASE_URL}/api/upload-file`, {
     method: 'POST',
@@ -75,8 +76,8 @@ export const uploadFileService = async (file: File): Promise<FileUploadStatus> =
   return response.json();
 };
 
-export const downloadFileService = async (filename: string): Promise<Response> => {
-  const response = await fetch(`${API_BASE_URL}/api/download-file?filename=${encodeURIComponent(filename)}`, {
+export const downloadFileService = async (filename: string, storageProvider: string): Promise<Response> => {
+  const response = await fetch(`${API_BASE_URL}/api/download-file?filename=${encodeURIComponent(filename)}&storageProvider=${encodeURIComponent(storageProvider)}`, {
     headers: {
       'Authorization': AUTH_TOKEN,
     },

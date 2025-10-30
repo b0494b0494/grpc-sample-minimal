@@ -9,6 +9,7 @@ go.sum
 # Downloaded archives
 *.tar.gz
 *.zip
+.env
 
 # IDE files
 .idea/

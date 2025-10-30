@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net"
+	"os"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -15,8 +16,11 @@ import (
 )
 
 const (
-	port = ":50051"
-	authToken = "my-secret-token"
+	defaultPort = ":50051"
+)
+
+var (
+	authToken = os.Getenv("AUTH_TOKEN")
 )
 
 // server is used to implement proto.GreeterServer.
@@ -99,7 +103,17 @@ func (s *server) DownloadFile(req *pb.FileDownloadRequest, stream pb.Greeter_Dow
 
 func main() {
 	domainService := domain.NewGreeterService()
-	appService := application.NewApplicationService(domainService)
+	storageService, err := domain.NewS3StorageService()
+	if err != nil {
+		log.Fatalf("failed to create S3 storage service: %v", err)
+	}
+	appService := application.NewApplicationService(domainService, storageService)
+
+	port := os.Getenv("GRPC_SERVER_PORT")
+	if port == "" {
+		port = defaultPort
+	}
+	port = ":" + port
 
 	lis, err := net.Listen("tcp", port)
 	if err != nil {

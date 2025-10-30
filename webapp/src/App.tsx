@@ -20,6 +20,7 @@ function App() {
   const [uploadStatus, setUploadStatus] = useState<string>('');
   const [downloadFilename, setDownloadFilename] = useState<string>('');
   const [downloadStatus, setDownloadStatus] = useState<string>('');
+  const [storageProvider, setStorageProvider] = useState<string>('s3'); // Default to s3
 
   // Unary RPC: SayHello
   const handleSayHello = async (e: React.FormEvent) => {
@@ -95,9 +96,9 @@ function App() {
 
     setUploadStatus('Uploading...');
     try {
-      const data: FileUploadStatus = await uploadFileService(selectedFile);
+      const data: FileUploadStatus = await uploadFileService(selectedFile, storageProvider);
       if (data.success) {
-        setUploadStatus(`Upload successful: ${data.message} (${data.bytesWritten} bytes)`);
+        setUploadStatus(`Upload successful: ${data.message} (${data.bytesWritten} bytes) to ${data.storageProvider}`);
       } else {
         setUploadStatus(`Upload failed: ${data.message || 'Unknown error'}`);
       }
@@ -116,7 +117,7 @@ function App() {
 
     setDownloadStatus('Downloading...');
     try {
-      const response = await downloadFileService(downloadFilename);
+      const response = await downloadFileService(downloadFilename, storageProvider);
       if (response.ok) {
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
@@ -193,14 +194,25 @@ function App() {
         </form>
       </div>
 
-      <h2>File Upload</h2>
+      <h2>File Operations</h2>
+      <div style={{ marginBottom: '10px' }}>
+        <label>
+          Storage Provider:
+          <select value={storageProvider} onChange={(e) => setStorageProvider(e.target.value)} style={{ marginLeft: '10px', padding: '5px' }}>
+            <option value="s3">AWS S3 (Localstack)</option>
+            {/* Add options for Azure, GCP later */}
+          </select>
+        </label>
+      </div>
+
+      <h3>File Upload</h3>
       <form onSubmit={handleFileUpload}>
         <input type="file" onChange={handleFileChange} />
         <button type="submit">Upload File</button>
         {uploadStatus && <p>{uploadStatus}</p>}
       </form>
 
-      <h2>File Download</h2>
+      <h3>File Download</h3>
       <form onSubmit={handleFileDownload}>
         <input
           type="text"

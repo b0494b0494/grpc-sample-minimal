@@ -24,12 +24,26 @@ This application uses Docker Compose for easy setup and execution.
     cd /path/to/grpc-sample-minimal
     ```
 
-3.  **Build and Run with Docker Compose:** Execute the following command to build the Docker images and start the server, client, and webapp containers:
+3.  **Configure Environment Variables:** Create a `.env` file in the project root with the following content:
+    ```
+    AUTH_TOKEN=my-secret-token
+    AWS_ACCESS_KEY_ID=test
+    AWS_SECRET_ACCESS_KEY=test
+    AWS_REGION=us-east-1
+    S3_BUCKET_NAME=grpc-sample-bucket
+    LOCALSTACK_ENDPOINT=http://localstack:4566
+    GRPC_SERVER_PORT=50051
+    ```
+    *Note: The `AUTH_TOKEN` is used for gRPC authentication. `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `S3_BUCKET_NAME`, and `LOCALSTACK_ENDPOINT` are for Localstack S3 integration. `GRPC_SERVER_PORT` defines the port the gRPC server listens on.*
+
+4.  **Build and Run with Docker Compose:** Execute the following command to build the Docker images and start the server, client, webapp, and localstack containers:
     ```bash
     docker-compose up --build
     ```
 
-    You should see output from the `server` and `client` services in your terminal. The `webapp` will be accessible via your browser.
+    You should see output from the `server`, `client`, and `localstack` services in your terminal. The `webapp` will be accessible via your browser.
+
+    **Localstack:** The `localstack` service emulates AWS S3 locally. The server will attempt to create an S3 bucket named `grpc-sample-bucket` on startup.
 
     **Example Client Output (from `client` service):**
     ```
@@ -65,10 +79,10 @@ This application uses Docker Compose for easy setup and execution.
     client-1 exited with code 0
     ```
 
-4.  **Access the Web Application:** Open your web browser and go to `http://localhost:8080`.
+5.  **Access the Web Application:** Open your web browser and go to `http://localhost:8080`.
     - The React application will load, and you can interact with the gRPC services through its UI.
 
-5.  **Stop the Application:** To stop and remove the containers, press `Ctrl+C` in the terminal where `docker-compose up` is running. Then, you can optionally remove the volumes and networks:
+6.  **Stop the Application:** To stop and remove the containers, press `Ctrl+C` in the terminal where `docker-compose up` is running. Then, you can optionally remove the volumes and networks:
     ```bash
     docker-compose down
     ```

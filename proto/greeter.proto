@@ -53,9 +53,11 @@ service Greeter {
         int64 bytes_written = 2;
         bool success = 3;
         string message = 4;
+        string storage_provider = 5;
       }
       
       // Message for file download request.
       message FileDownloadRequest {
         string filename = 1;
+        string storage_provider = 2;
       }

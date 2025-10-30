@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 
@@ -19,7 +20,10 @@ import (
 const (
 	grpcAddress = "server:50051"
 	webPort     = ":8080"
-	authToken = "my-secret-token"
+)
+
+var (
+	authToken = os.Getenv("AUTH_TOKEN")
 )
 
 var chatClients = make(map[chan string]bool)
@@ -79,7 +83,7 @@ func greetHandler(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithTimeout(r.Context(), time.Second)
 	defer cancel()
-	ctx = metadata.AppendToOutgoingContext(ctx, "authorization", authToken)
+	ctx = metadata.AppendToOutgoingContext(ctx, "authorization", os.Getenv("AUTH_TOKEN"))
 
 	reply, err := c.SayHello(ctx, &pb.HelloRequest{Name: name})
 	if err != nil {
@@ -107,7 +111,7 @@ func streamCounterHandler(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second) // Increased timeout for streaming
 	defer cancel()
-	ctx = metadata.AppendToOutgoingContext(ctx, "authorization", authToken)
+	ctx = metadata.AppendToOutgoingContext(ctx, "authorization", os.Getenv("AUTH_TOKEN"))
 
 	stream, err := c.StreamCounter(ctx, &pb.CounterRequest{Limit: 10})
 	if err != nil {
@@ -203,7 +207,7 @@ func sendChatHandler(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
-	ctx = metadata.AppendToOutgoingContext(ctx, "authorization", authToken)
+	ctx = metadata.AppendToOutgoingContext(ctx, "authorization", os.Getenv("AUTH_TOKEN"))
 
 	stream, err := c.Chat(ctx)
 	if err != nil {
@@ -260,7 +264,7 @@ func uploadFileHandler(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second) // Long timeout for large files
 	defer cancel()
-	ctx = metadata.AppendToOutgoingContext(ctx, "authorization", authToken)
+	ctx = metadata.AppendToOutgoingContext(ctx, "authorization", os.Getenv("AUTH_TOKEN"))
 
 	stream, err := c.UploadFile(ctx)
 	if err != nil {
@@ -301,6 +305,7 @@ func uploadFileHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"message": reply.GetMessage(), "filename": reply.GetFilename(), "bytesWritten": fmt.Sprintf("%d", reply.GetBytesWritten())})
 }
+
 
 func downloadFileHandler(w http.ResponseWriter, r *http.Request) {
 	filename := r.URL.Query().Get("filename")
