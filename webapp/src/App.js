@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from 'react';
-
-const API_BASE_URL = ''; // Proxy to Go backend
-const AUTH_TOKEN = 'my-secret-token';
+import {
+  greetService,
+  streamCounterService,
+  chatStreamService,
+  sendChatMessageService,
+  uploadFileService,
+  downloadFileService,
+} from './services/grpcService';
 
 function App() {
   const [name, setName] = useState('');
@@ -19,18 +24,11 @@ function App() {
   const handleSayHello = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch(`${API_BASE_URL}/api/greet`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ name }),
-      });
-      const data = await response.json();
-      if (response.ok) {
+      const data = await greetService(name);
+      if (data.greeting) {
         setGreeting(data.greeting);
       } else {
-        setGreeting(`Error: ${data.error || response.statusText}`);
+        setGreeting(`Error: ${data.error || 'Unknown error'}`);
       }
     } catch (error) {
       setGreeting(`Network Error: ${error.message}`);
@@ -40,53 +38,33 @@ function App() {
   // Server-Side Streaming RPC: StreamCounter
   const handleStartCounterStream = () => {
     setCounterOutput([]);
-    const eventSource = new EventSource(`${API_BASE_URL}/api/stream-counter`);
-
-    eventSource.onmessage = (event) => {
-      setCounterOutput((prev) => [...prev, `Count: ${event.data}`]);
-    };
-
-    eventSource.onerror = (event) => {
-      console.error('EventSource failed:', event);
-      setCounterOutput((prev) => [...prev, `Error in stream: ${event.data || 'Unknown error'}`]);
-      eventSource.close();
-    };
-
-    eventSource.addEventListener('end', (event) => {
-      setCounterOutput((prev) => [...prev, event.data]);
-      eventSource.close();
-    });
+    const cleanup = streamCounterService(
+      (data) => setCounterOutput((prev) => [...prev, `Count: ${data}`]),
+      (event) => {
+        console.error('EventSource failed:', event);
+        setCounterOutput((prev) => [...prev, `Error in stream: ${event.data || 'Unknown error'}`]);
+      },
+      (data) => setCounterOutput((prev) => [...prev, data])
+    );
+    return cleanup; // Return cleanup function if needed
   };
 
   // Bidirectional Streaming RPC: Chat
   useEffect(() => {
-    const chatEventSource = new EventSource(`${API_BASE_URL}/api/chat-stream`);
-
-    chatEventSource.onmessage = (event) => {
-      setChatMessages((prev) => [...prev, event.data]);
-    };
-
-    chatEventSource.onerror = (event) => {
-      console.error('Chat EventSource failed:', event);
-      setChatMessages((prev) => [...prev, `Error in chat stream: ${event.data || 'Unknown error'}`]);
-      chatEventSource.close();
-    };
-
-    return () => {
-      chatEventSource.close();
-    };
+    const cleanup = chatStreamService(
+      (data) => setChatMessages((prev) => [...prev, data]),
+      (event) => {
+        console.error('Chat EventSource failed:', event);
+        setChatMessages((prev) => [...prev, `Error in chat stream: ${event.data || 'Unknown error'}`]);
+      }
+    );
+    return cleanup;
   }, []);
 
   const handleSendChatMessage = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch(`${API_BASE_URL}/api/send-chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ user: chatUser, message: chatMessageInput }),
-      });
+      const response = await sendChatMessageService(chatUser, chatMessageInput);
       if (!response.ok) {
         const errorData = await response.json();
         console.error('Failed to send chat message:', errorData);
@@ -113,19 +91,12 @@ function App() {
     }
 
     setUploadStatus('Uploading...');
-    const formData = new FormData();
-    formData.append('uploadFile', selectedFile);
-
     try {
-      const response = await fetch(`${API_BASE_URL}/api/upload-file`, {
-        method: 'POST',
-        body: formData,
-      });
-      const data = await response.json();
-      if (response.ok) {
+      const data = await uploadFileService(selectedFile);
+      if (data.success) {
         setUploadStatus(`Upload successful: ${data.message} (${data.bytesWritten} bytes)`);
       } else {
-        setUploadStatus(`Upload failed: ${data.error || response.statusText}`);
+        setUploadStatus(`Upload failed: ${data.message || 'Unknown error'}`);
       }
     } catch (error) {
       setUploadStatus(`Network Error: ${error.message}`);
@@ -142,7 +113,7 @@ function App() {
 
     setDownloadStatus('Downloading...');
     try {
-      const response = await fetch(`${API_BASE_URL}/api/download-file?filename=${encodeURIComponent(downloadFilename)}`);
+      const response = await downloadFileService(downloadFilename);
       if (response.ok) {
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
