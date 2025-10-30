@@ -5,7 +5,7 @@ This is a minimal gRPC sample application implemented in Go, demonstrating basic
 ## Project Structure
 
 - `proto/`: Contains the Protocol Buffer definition (`greeter.proto`) and the generated Go code.
-- `server/`: Implements the gRPC server with authentication and logging interceptors.
+- `server/`: Implements the gRPC server with a layered architecture (domain, application, infrastructure) including authentication and logging interceptors.
 - `client/`: Implements the gRPC client with authentication and logging interceptors.
 - `webapp/`: Contains a React frontend application and a Go backend that exposes API endpoints for gRPC calls.
 - `Dockerfile.server`: Dockerfile for building the gRPC server image.
