@@ -1,141 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import {
-  greetService,
-  streamCounterService,
-  chatStreamService,
-  sendChatMessageService,
-  uploadFileService,
-  downloadFileService,
-} from './services/grpcService';
-import { GreetingResponse, FileUploadStatus } from './types';
+  useGreeting,
+  useCounterStream,
+  useChat,
+  useFileUpload,
+  useFileDownload,
+} from './hooks';
 
 function App() {
-  const [name, setName] = useState<string>('');
-  const [greeting, setGreeting] = useState<string>('');
-  const [counterOutput, setCounterOutput] = useState<string[]>([]);
-  const [chatUser, setChatUser] = useState<string>('Anonymous');
-  const [chatMessageInput, setChatMessageInput] = useState<string>('');
-  const [chatMessages, setChatMessages] = useState<string[]>([]);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [uploadStatus, setUploadStatus] = useState<string>('');
-  const [downloadFilename, setDownloadFilename] = useState<string>('');
-  const [downloadStatus, setDownloadStatus] = useState<string>('');
+  const { name, setName, greeting, handleSayHello } = useGreeting();
+  const { counterOutput, handleStartCounterStream } = useCounterStream();
+  const { chatUser, setChatUser, chatMessageInput, setChatMessageInput, chatMessages, handleSendChatMessage } = useChat();
+
   const [storageProvider, setStorageProvider] = useState<string>('s3'); // Default to s3
-
-  // Unary RPC: SayHello
-  const handleSayHello = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const data: GreetingResponse = await greetService(name);
-      if (data.greeting) {
-        setGreeting(data.greeting);
-      } else {
-        setGreeting(`Error: ${data.error || 'Unknown error'}`);
-      }
-    } catch (error: any) {
-      setGreeting(`Network Error: ${error.message}`);
-    }
-  };
-
-  // Server-Side Streaming RPC: StreamCounter
-  const handleStartCounterStream = () => {
-    setCounterOutput([]);
-    const cleanup = streamCounterService(
-      (data: string) => setCounterOutput((prev) => [...prev, `Count: ${data}`]),
-      (event: any) => {
-        console.error('EventSource failed:', event);
-        setCounterOutput((prev) => [...prev, `Error in stream: ${event.data || 'Unknown error'}`]);
-      },
-      (data: string) => setCounterOutput((prev) => [...prev, data])
-    );
-    return cleanup; // Return cleanup function if needed
-  };
-
-  // Bidirectional Streaming RPC: Chat
-  useEffect(() => {
-    const cleanup = chatStreamService(
-      (data: string) => setChatMessages((prev) => [...prev, data]),
-      (event: any) => {
-        console.error('Chat EventSource failed:', event);
-        setChatMessages((prev) => [...prev, `Error in chat stream: ${event.data || 'Unknown error'}`]);
-      }
-    );
-    return cleanup;
-  }, []);
-
-  const handleSendChatMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const response = await sendChatMessageService(chatUser, chatMessageInput);
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Failed to send chat message:', errorData);
-        setChatMessages((prev) => [...prev, `Error sending message: ${errorData.error || response.statusText}`]);
-      } else {
-        setChatMessageInput(''); // Clear input after sending
-      }
-    } catch (error: any) {
-      console.error('Network Error sending chat message:', error);
-      setChatMessages((prev) => [...prev, `Network Error: ${error.message}`]);
-    }
-  };
-
-  // File Upload
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setSelectedFile(e.target.files[0]);
-    }
-  };
-
-  const handleFileUpload = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedFile) {
-      setUploadStatus('Please select a file first.');
-      return;
-    }
-
-    setUploadStatus('Uploading...');
-    try {
-      const data: FileUploadStatus = await uploadFileService(selectedFile, storageProvider);
-      if (data.success) {
-        setUploadStatus(`Upload successful: ${data.message} (${data.bytesWritten} bytes) to ${data.storageProvider}`);
-      } else {
-        setUploadStatus(`Upload failed: ${data.message || 'Unknown error'}`);
-      }
-    } catch (error: any) {
-      setUploadStatus(`Network Error: ${error.message}`);
-    }
-  };
-
-  // File Download
-  const handleFileDownload = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!downloadFilename) {
-      setDownloadStatus('Please enter a filename.');
-      return;
-    }
-
-    setDownloadStatus('Downloading...');
-    try {
-      const response = await downloadFileService(downloadFilename, storageProvider);
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = downloadFilename;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        window.URL.revokeObjectURL(url);
-        setDownloadStatus('Download successful.');
-      } else {
-        setDownloadStatus(`Download failed: ${response.statusText}`);
-      }
-    } catch (error: any) {
-      setDownloadStatus(`Network Error: ${error.message}`);
-    }
-  };
+  const { selectedFile, uploadStatus, handleFileChange, handleFileUpload } = useFileUpload(storageProvider);
+  const { downloadFilename, setDownloadFilename, downloadStatus, handleFileDownload } = useFileDownload(storageProvider);
 
   return (
     <div style={{ fontFamily: 'Arial, sans-serif', margin: '20px' }}>
