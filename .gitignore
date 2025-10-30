@@ -1,0 +1,23 @@
+# Go build artifacts
+*.exe
+*.test
+*.prof
+
+# Go module cache
+go.sum
+
+# Downloaded archives
+*.tar.gz
+*.zip
+
+# IDE files
+.idea/
+.vscode/
+
+# React build artifacts
+webapp/build/
+webapp/node_modules/
+
+# Go generated files (optional, often kept in VCS for convenience)
+# proto/*.pb.go
+# proto/*_grpc.pb.go
