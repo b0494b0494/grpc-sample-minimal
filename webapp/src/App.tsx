@@ -50,6 +50,7 @@ function App() {
                   <select value={storageProvider} onChange={(e) => setStorageProvider(e.target.value)} style={{ marginLeft: 10, padding: 5 }}>
                     <option value="s3">AWS S3 (Localstack)</option>
                     <option value="gcs">Google Cloud Storage (fake-gcs)</option>
+                    <option value="azure">Azure Blob Storage (Azurite)</option>
                   </select>
                 </label>
               </div>

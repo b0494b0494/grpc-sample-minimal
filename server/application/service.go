@@ -62,9 +62,14 @@ func (s *ApplicationService) UploadFile(stream proto.Greeter_UploadFileServer) e
     storage := s.storageService
     if md, ok := metadata.FromIncomingContext(stream.Context()); ok {
         if vals := md.Get("storage-provider"); len(vals) > 0 {
-            if vals[0] == "gcs" {
+            switch vals[0] {
+            case "gcs":
                 if gcs, err := domain.NewGCSStorageService(stream.Context()); err == nil {
                     storage = gcs
+                }
+            case "azure":
+                if azure, err := domain.NewAzureStorageService(stream.Context()); err == nil {
+                    storage = azure
                 }
             }
         }
@@ -81,9 +86,15 @@ func (s *ApplicationService) UploadFile(stream proto.Greeter_UploadFileServer) e
 
 func (s *ApplicationService) DownloadFile(req *proto.FileDownloadRequest, stream proto.Greeter_DownloadFileServer) error {
     storage := s.storageService
-    if req.GetStorageProvider() == "gcs" {
+    provider := req.GetStorageProvider()
+    switch provider {
+    case "gcs":
         if gcs, err := domain.NewGCSStorageService(stream.Context()); err == nil {
             storage = gcs
+        }
+    case "azure":
+        if azure, err := domain.NewAzureStorageService(stream.Context()); err == nil {
+            storage = azure
         }
     }
 

@@ -10,6 +10,8 @@ RUN go get github.com/aws/aws-sdk-go-v2/credentials
 RUN go get github.com/aws/aws-sdk-go-v2/service/s3
 RUN go get github.com/aws/aws-sdk-go-v2/service/s3/types
 RUN go get cloud.google.com/go/storage
+RUN go get github.com/Azure/azure-sdk-for-go/sdk/azcore
+RUN go get github.com/Azure/azure-sdk-for-go/sdk/storage/azblob
 
 COPY server ./server
 COPY proto ./proto
