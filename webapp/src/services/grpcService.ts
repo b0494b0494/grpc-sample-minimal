@@ -133,8 +133,9 @@ export const downloadFileAsBlob = async (
   filename: string,
   storageProvider: string
 ): Promise<Blob> => {
+  // Add preview=true to get inline content disposition
   const response = await fetch(
-    `${API_BASE_URL}/api/download-file?filename=${encodeURIComponent(filename)}&storageProvider=${encodeURIComponent(storageProvider)}`,
+    `${API_BASE_URL}/api/download-file?filename=${encodeURIComponent(filename)}&storageProvider=${encodeURIComponent(storageProvider)}&preview=true`,
     {
       method: 'GET',
       headers: {
