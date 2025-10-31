@@ -6,12 +6,13 @@ This is a minimal gRPC sample application implemented in Go, demonstrating basic
 
 - `proto/`: Contains the Protocol Buffer definition (`greeter.proto`) and the generated Go code.
 - `server/`: Implements the gRPC server with a layered architecture (domain, application, infrastructure) including authentication and logging interceptors.
+  - `server/domain/`: Domain layer with storage service implementations (S3, GCS, Azure Blob Storage)
 - `client/`: Implements the gRPC client with authentication and logging interceptors.
 - `webapp/`: Contains a React frontend application (now in TypeScript with an API service layer, custom hooks, and component-based structure) and a Go backend that exposes API endpoints for gRPC calls.
 - `Dockerfile.server`: Dockerfile for building the gRPC server image.
 - `Dockerfile.client`: Dockerfile for building the gRPC client image.
 - `Dockerfile.webapp`: Dockerfile for building the web application image (React frontend + Go backend).
-- `docker-compose.yml`: Defines and runs the multi-container Docker application.
+- `docker-compose.yml`: Defines and runs the multi-container Docker application with storage emulators (Localstack, fake-gcs, Azurite).
 
 ## How to Run
 
@@ -35,15 +36,26 @@ This application uses Docker Compose for easy setup and execution.
     GRPC_SERVER_PORT=50051
     ```
     *Note: The `AUTH_TOKEN` is used for gRPC authentication. `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `S3_BUCKET_NAME`, and `LOCALSTACK_ENDPOINT` are for Localstack S3 integration. `GRPC_SERVER_PORT` defines the port the gRPC server listens on.*
+    
+    **Azure Storage Emulator:** Azure Blob Storage configuration is handled automatically in `docker-compose.yml`. For production use, you would set:
+    - `AZURE_STORAGE_CONNECTION_STRING`: Connection string for real Azure Storage (when not using emulator)
 
-4.  **Build and Run with Docker Compose:** Execute the following command to build the Docker images and start the server, client, webapp, and localstack containers:
+4.  **Build and Run with Docker Compose:** Execute the following command to build the Docker images and start all services:
     ```bash
     docker-compose up --build
     ```
+    
+    Or run in detached mode:
+    ```bash
+    docker-compose up --build -d
+    ```
 
-    You should see output from the `server`, `client`, and `localstack` services in your terminal. The `webapp` will be accessible via your browser.
+    You should see output from the `server`, `client`, and storage emulator services in your terminal. The `webapp` will be accessible via your browser.
 
-    **Localstack:** The `localstack` service emulates AWS S3 locally. The server will attempt to create an S3 bucket named `grpc-sample-bucket` on startup.
+    **Storage Emulators:**
+    - **Localstack:** The `localstack` service emulates AWS S3 locally. The server will attempt to create an S3 bucket named `grpc-sample-bucket` on startup.
+    - **fake-gcs:** The `fake-gcs` service emulates Google Cloud Storage locally.
+    - **Azurite:** The `azurite` service emulates Azure Blob Storage locally (runs on port 10000 for Blob service).
 
     **Example Client Output (from `client` service):**
     ```
@@ -81,8 +93,38 @@ This application uses Docker Compose for easy setup and execution.
 
 5.  **Access the Web Application:** Open your web browser and go to `http://localhost:8080`.
     - The React application will load, and you can interact with the gRPC services through its UI.
+    - Navigate to the **Files** page to test file upload/download functionality.
+    - You can switch between different storage providers:
+      - **AWS S3 (Localstack)**: Uses Localstack emulator
+      - **Google Cloud Storage (fake-gcs)**: Uses fake-gcs-server emulator
+      - **Azure Blob Storage (Azurite)**: Uses Azurite emulator
 
-6.  **Stop the Application:** To stop and remove the containers, press `Ctrl+C` in the terminal where `docker-compose up` is running. Then, you can optionally remove the volumes and networks:
+6.  **Stop the Application:** To stop and remove the containers, press `Ctrl+C` in the terminal where `docker-compose up` is running (if running in foreground mode). For detached mode, or to clean up:
     ```bash
     docker-compose down
     ```
+    
+    To also remove volumes and networks:
+    ```bash
+    docker-compose down -v
+    ```
+
+## Storage Providers
+
+This application supports multiple cloud storage providers with local emulators:
+
+| Provider | Emulator | Port | Description |
+|----------|----------|------|-------------|
+| AWS S3 | Localstack | 4566 | Full S3 API emulation |
+| Google Cloud Storage | fake-gcs-server | 4443 | GCS API emulation |
+| Azure Blob Storage | Azurite | 10000 | Azure Storage emulation |
+
+All storage providers can be selected from the web UI, and files uploaded/downloaded will be stored in the respective emulator.
+
+## Features
+
+- **gRPC Communication**: Unary, server streaming, client streaming, and bidirectional streaming
+- **Authentication**: Token-based authentication for gRPC calls
+- **File Operations**: Upload and download files to/from multiple cloud storage providers
+- **Storage Emulators**: Local development support for AWS S3, GCS, and Azure Blob Storage
+- **Web UI**: React-based frontend for interacting with gRPC services
