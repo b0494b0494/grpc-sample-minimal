@@ -110,8 +110,9 @@ This application uses Docker Compose for easy setup and execution.
 5.  **Access the Web Application:** Open your web browser and go to `http://localhost:8080`.
     - The React application will load, and you can interact with the gRPC services through its UI.
     - Navigate to the **Files** page to test file operations:
-      - **Upload**: Select a file and upload it to the chosen storage provider
+      - **Upload**: Select a file (click or drag and drop) and upload it to the chosen storage provider
       - **List**: View all uploaded files with their metadata (filename, size, namespace)
+      - **Preview**: Preview image, PDF, and text files directly in the browser
       - **Download**: Download files from storage
       - **Delete**: Remove files from storage and database
     - Navigate to the **OCR** page to process images and documents:
@@ -152,7 +153,8 @@ All storage providers can be selected from the web UI, and files uploaded/downlo
 - **gRPC Communication**: Unary, server streaming, client streaming, and bidirectional streaming
 - **Authentication**: Token-based authentication for gRPC calls
 - **File Operations**: 
-  - Upload files to multiple cloud storage providers
+  - Upload files to multiple cloud storage providers (click to select or drag and drop)
+  - Preview image, PDF, and text files directly in the browser
   - Download files from storage
   - List uploaded files with metadata
   - Delete files from storage
@@ -168,6 +170,8 @@ All storage providers can be selected from the web UI, and files uploaded/downlo
 - **Storage Emulators**: Local development support for AWS S3, GCS, and Azure Blob Storage
 - **Web UI**: 
   - React-based frontend (TypeScript) with React Bootstrap components
+  - Drag and drop file selection for easy file uploads
+  - File preview modal for images, PDFs, and text files
   - Modal dialogs for user feedback and confirmations
   - File list with namespace badges (documents/media/others)
   - Storage provider selection (S3/GCS/Azure)
