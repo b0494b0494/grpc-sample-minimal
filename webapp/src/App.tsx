@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, Routes, Route, Navigate } from 'react-router-dom';
 import { Container, Navbar, Nav } from 'react-bootstrap';
-import { Greeting, CounterStream, Chat, FileUpload, FileDownload } from './components';
+import { Greeting, CounterStream, Chat, FileUpload, FileDownload, OCRResults } from './components';
 
 function App() {
   const [storageProvider, setStorageProvider] = useState<string>('s3'); // Default to s3
@@ -18,6 +18,7 @@ function App() {
               <Nav.Link as={Link} to="/counter" className="px-3">Counter</Nav.Link>
               <Nav.Link as={Link} to="/chat" className="px-3">Chat</Nav.Link>
               <Nav.Link as={Link} to="/files" className="px-3">Files</Nav.Link>
+              <Nav.Link as={Link} to="/ocr" className="px-3">OCR Results</Nav.Link>
             </Nav>
           </Navbar.Collapse>
         </Container>
@@ -74,6 +75,27 @@ function App() {
                 <FileUpload storageProvider={storageProvider} />
                 <FileDownload storageProvider={storageProvider} />
               </div>
+            </div>
+          } />
+          <Route path="/ocr" element={
+            <div className="py-3">
+              <h2 className="h3 fw-semibold mb-2">OCR Results</h2>
+              <p className="text-muted mb-4">View OCR processing results for document files.</p>
+              <div className="mb-4">
+                <label className="form-label">
+                  Storage Provider:
+                </label>
+                <select 
+                  value={storageProvider} 
+                  onChange={(e) => setStorageProvider(e.target.value)}
+                  className="form-select w-auto"
+                >
+                  <option value="s3">AWS S3 (Localstack)</option>
+                  <option value="gcs">Google Cloud Storage (fake-gcs)</option>
+                  <option value="azure">Azure Blob Storage (Azurite)</option>
+                </select>
+              </div>
+              <OCRResults storageProvider={storageProvider} />
             </div>
           } />
           <Route path="*" element={<Navigate to="/" replace />} />

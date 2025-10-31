@@ -43,6 +43,11 @@ func main() {
     http.HandleFunc("/api/download-file", handlers.DownloadFileHandler)
 	http.HandleFunc("/api/list-files", handlers.ListFilesHandler)
 	http.HandleFunc("/api/delete-file", handlers.DeleteFileHandler)
+	// OCR related endpoints
+	http.HandleFunc("/api/process-ocr", handlers.ProcessOCRHandler)
+	http.HandleFunc("/api/get-ocr-result", handlers.GetOCRResultHandler)
+	http.HandleFunc("/api/list-ocr-results", handlers.ListOCRResultsHandler)
+	http.HandleFunc("/api/compare-ocr-results", handlers.CompareOCRResultsHandler)
 
     log.Printf("Web server listening on port %s", webPort)
     log.Fatal(http.ListenAndServe(webPort, nil))

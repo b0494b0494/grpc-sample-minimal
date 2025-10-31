@@ -4,13 +4,14 @@ import { Modal, Button } from 'react-bootstrap';
 interface AlertDialogProps {
   show: boolean;
   title: string;
-  message: string;
+  message?: string;
   variant?: 'success' | 'danger' | 'warning' | 'info';
   onClose: () => void;
   onConfirm?: () => void;
   confirmText?: string;
   cancelText?: string;
   showCancel?: boolean;
+  children?: React.ReactNode; // Add children support
 }
 
 export const AlertDialog: React.FC<AlertDialogProps> = ({
@@ -23,6 +24,7 @@ export const AlertDialog: React.FC<AlertDialogProps> = ({
   confirmText = 'OK',
   cancelText = 'Cancel',
   showCancel = false,
+  children,
 }) => {
   const handleConfirm = () => {
     if (onConfirm) {
@@ -50,7 +52,9 @@ export const AlertDialog: React.FC<AlertDialogProps> = ({
       <Modal.Header closeButton>
         <Modal.Title className={getVariantClass()}>{title}</Modal.Title>
       </Modal.Header>
-      <Modal.Body>{message}</Modal.Body>
+      <Modal.Body>
+        {children || message}
+      </Modal.Body>
       <Modal.Footer>
         {showCancel && (
           <Button variant="secondary" onClick={onClose}>

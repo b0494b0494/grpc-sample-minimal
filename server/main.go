@@ -109,6 +109,22 @@ func (s *server) DeleteFile(ctx context.Context, req *pb.DeleteFileRequest) (*pb
 	return s.appService.DeleteFile(ctx, req)
 }
 
+func (s *server) ProcessOCR(ctx context.Context, req *pb.OCRRequest) (*pb.OCRResponse, error) {
+	return s.appService.ProcessOCR(ctx, req)
+}
+
+func (s *server) GetOCRResult(ctx context.Context, req *pb.OCRResultRequest) (*pb.OCRResultResponse, error) {
+	return s.appService.GetOCRResult(ctx, req)
+}
+
+func (s *server) ListOCRResults(ctx context.Context, req *pb.OCRListRequest) (*pb.OCRListResponse, error) {
+	return s.appService.ListOCRResults(ctx, req)
+}
+
+func (s *server) CompareOCRResults(ctx context.Context, req *pb.OCRComparisonRequest) (*pb.OCRComparisonResponse, error) {
+	return s.appService.CompareOCRResults(ctx, req)
+}
+
 func main() {
 	domainService := domain.NewGreeterService()
 	storageService, err := domain.NewS3StorageService()
@@ -129,7 +145,41 @@ func main() {
 		}
 	}()
 	
-	appService := application.NewApplicationService(domainService, storageService, fileRepo)
+	// OCR?????????????????gRPC????????
+	ocrEndpoint := os.Getenv("OCR_SERVICE_ENDPOINT")
+	if ocrEndpoint == "" {
+		ocrEndpoint = "ocr-service:50052" // ?????
+	}
+	
+	ocrClient, err := domain.NewOCRClient(ocrEndpoint, authToken)
+	if err != nil {
+		log.Printf("Warning: Failed to create OCR client: %v (OCR features will be unavailable)", err)
+		// OCR??????????????nil?????????????????
+		// ????????nil???????
+	}
+	
+	// OCR??????????????DB????
+	ocrResultRepo, err := domain.NewOCRResultRepository(context.Background())
+	if err != nil {
+		log.Printf("Warning: Failed to create OCR result repository: %v", err)
+	}
+	defer func() {
+		if ocrResultRepo != nil {
+			if closer, ok := ocrResultRepo.(interface{ Close() error }); ok {
+				if err := closer.Close(); err != nil {
+					log.Printf("Error closing OCR result repository: %v", err)
+				}
+			}
+		}
+	}()
+	
+	appService := application.NewApplicationService(
+		domainService, 
+		storageService, 
+		fileRepo,
+		ocrClient,
+		ocrResultRepo,
+	)
 
 	port := os.Getenv("GRPC_SERVER_PORT")
 	if port == "" {

@@ -14,16 +14,23 @@ RUN go get github.com/Azure/azure-sdk-for-go/sdk/azcore
 RUN go get github.com/Azure/azure-sdk-for-go/sdk/storage/azblob
 RUN go get github.com/mattn/go-sqlite3
 
+# Install CGO dependencies for gosseract (even though server doesn't run OCR, it builds domain package)
+# Note: server/domain package imports gosseract, so CGO dependencies are needed at build time
+RUN apt-get update && apt-get install -y \
+    protobuf-compiler \
+    libtesseract-dev \
+    libleptonica-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY server ./server
 COPY proto ./proto
 
 # Generate proto files
-RUN apt-get update && apt-get install -y protobuf-compiler && rm -rf /var/lib/apt/lists/*
 RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 RUN protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative proto/greeter.proto
 
-RUN go build -o /app/server/server ./server
+RUN CGO_ENABLED=1 go build -o /app/server/server ./server
 
 EXPOSE 50051
 

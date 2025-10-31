@@ -102,6 +102,28 @@ func (s *s3StorageService) UploadFile(ctx context.Context, filename string, cont
 func (s *s3StorageService) DownloadFile(ctx context.Context, filename string) (io.Reader, error) {
 	// Build storage path with namespace prefix
 	storagePath := BuildStoragePath(filename)
+	log.Printf("S3 DownloadFile: filename=%s, storagePath=%s", filename, storagePath)
+
+	resp, err := s.s3Client.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(s3BucketName),
+		Key:    aws.String(storagePath),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to download file from S3: %w", err)
+	}
+	defer resp.Body.Close()
+
+	buf := new(bytes.Buffer)
+	_, err = buf.ReadFrom(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read S3 object body: %w", err)
+	}
+
+	return buf, nil
+}
+
+func (s *s3StorageService) DownloadFileByPath(ctx context.Context, storagePath string) (io.Reader, error) {
+	log.Printf("S3 DownloadFileByPath: storagePath=%s", storagePath)
 
 	resp, err := s.s3Client.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(s3BucketName),
@@ -155,22 +177,25 @@ func (s *s3StorageService) ListFiles(ctx context.Context) ([]*pb.FileInfo, error
 				continue
 			}
 			
-			// Extract namespace and filename from key (e.g., "documents/file.pdf" -> namespace: "documents/", filename: "file.pdf")
-			var namespace, filename string
-			if strings.HasPrefix(key, "documents/") {
-				namespace = "documents"
-				filename = strings.TrimPrefix(key, "documents/")
-			} else if strings.HasPrefix(key, "media/") {
-				namespace = "media"
-				filename = strings.TrimPrefix(key, "media/")
-			} else if strings.HasPrefix(key, "others/") {
-				namespace = "others"
-				filename = strings.TrimPrefix(key, "others/")
-			} else {
-				// Legacy files without namespace
-				namespace = "others"
-				filename = key
-			}
+		// Extract namespace and filename from key (e.g., "documents/file.pdf" -> namespace: "documents/", filename: "file.pdf")
+		var namespace, filename string
+		if strings.HasPrefix(key, "documents/") {
+			namespace = "documents"
+			filename = strings.TrimPrefix(key, "documents/")
+		} else if strings.HasPrefix(key, "images/") {
+			namespace = "images"
+			filename = strings.TrimPrefix(key, "images/")
+		} else if strings.HasPrefix(key, "media/") {
+			namespace = "media"
+			filename = strings.TrimPrefix(key, "media/")
+		} else if strings.HasPrefix(key, "others/") {
+			namespace = "others"
+			filename = strings.TrimPrefix(key, "others/")
+		} else {
+			// Legacy files without namespace
+			namespace = "others"
+			filename = key
+		}
 			
 			files = append(files, &pb.FileInfo{
 				Filename:  filename,

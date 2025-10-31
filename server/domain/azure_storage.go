@@ -128,6 +128,32 @@ func (s *azureStorageService) UploadFile(ctx context.Context, filename string, c
 func (s *azureStorageService) DownloadFile(ctx context.Context, filename string) (io.Reader, error) {
 	// Build storage path with namespace prefix
 	storagePath := BuildStoragePath(filename)
+	log.Printf("Azure DownloadFile: filename=%s, storagePath=%s", filename, storagePath)
+
+	// Get block blob client
+	serviceClient := s.blobClient.ServiceClient()
+	containerClient := serviceClient.NewContainerClient(s.containerName)
+	blockBlobClient := containerClient.NewBlockBlobClient(storagePath)
+
+	// Download the blob
+	resp, err := blockBlobClient.DownloadStream(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to download file from Azure Blob Storage: %w", err)
+	}
+
+	// Read all data from the response body
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		_ = resp.Body.Close()
+		return nil, fmt.Errorf("failed to read Azure Blob object body: %w", err)
+	}
+	_ = resp.Body.Close()
+
+	return bytes.NewReader(data), nil
+}
+
+func (s *azureStorageService) DownloadFileByPath(ctx context.Context, storagePath string) (io.Reader, error) {
+	log.Printf("Azure DownloadFileByPath: storagePath=%s", storagePath)
 
 	// Get block blob client
 	serviceClient := s.blobClient.ServiceClient()
@@ -188,21 +214,24 @@ func (s *azureStorageService) ListFiles(ctx context.Context) ([]*pb.FileInfo, er
 				continue
 			}
 			
-			var namespace, filename string
-			if strings.HasPrefix(name, "documents/") {
-				namespace = "documents"
-				filename = strings.TrimPrefix(name, "documents/")
-			} else if strings.HasPrefix(name, "media/") {
-				namespace = "media"
-				filename = strings.TrimPrefix(name, "media/")
-			} else if strings.HasPrefix(name, "others/") {
-				namespace = "others"
-				filename = strings.TrimPrefix(name, "others/")
-			} else {
-				// Legacy files without namespace
-				namespace = "others"
-				filename = name
-			}
+		var namespace, filename string
+		if strings.HasPrefix(name, "documents/") {
+			namespace = "documents"
+			filename = strings.TrimPrefix(name, "documents/")
+		} else if strings.HasPrefix(name, "images/") {
+			namespace = "images"
+			filename = strings.TrimPrefix(name, "images/")
+		} else if strings.HasPrefix(name, "media/") {
+			namespace = "media"
+			filename = strings.TrimPrefix(name, "media/")
+		} else if strings.HasPrefix(name, "others/") {
+			namespace = "others"
+			filename = strings.TrimPrefix(name, "others/")
+		} else {
+			// Legacy files without namespace
+			namespace = "others"
+			filename = name
+		}
 			
 			size := int64(0)
 			if blob.Properties != nil && blob.Properties.ContentLength != nil {

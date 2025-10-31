@@ -18,13 +18,23 @@ type ApplicationService struct {
 	greeterService domain.GreeterService
 	storageService domain.StorageService
 	fileRepo       domain.FileMetadataRepository
+	ocrClient      domain.OCRClient // OCR??????????????????????
+	ocrResultRepo  domain.OCRResultRepository // OCR?????
 }
 
-func NewApplicationService(greeterService domain.GreeterService, storageService domain.StorageService, fileRepo domain.FileMetadataRepository) *ApplicationService {
+func NewApplicationService(
+	greeterService domain.GreeterService, 
+	storageService domain.StorageService, 
+	fileRepo domain.FileMetadataRepository,
+	ocrClient domain.OCRClient,
+	ocrResultRepo domain.OCRResultRepository,
+) *ApplicationService {
 	return &ApplicationService{
 		greeterService: greeterService,
 		storageService: storageService,
 		fileRepo:       fileRepo,
+		ocrClient:      ocrClient,
+		ocrResultRepo:  ocrResultRepo,
 	}
 }
 
@@ -141,6 +151,25 @@ func (s *ApplicationService) UploadFile(stream proto.Greeter_UploadFileServer) e
 		log.Printf("Successfully saved file metadata to database")
 	}
 
+	// documents/???images/??????????????????OCR?????
+	// namespace?"documents/"???"images/"???????"/"???
+	if (namespace == "documents/" || namespace == "images/") && s.ocrClient != nil {
+		// ????????????OCR??????
+		queueService, err := domain.NewQueueService(provider)
+		if err != nil {
+			log.Printf("Warning: Failed to create queue service: %v", err)
+		} else {
+			// ????OCR??????????
+			go func() {
+				if err := queueService.EnqueueOCRTask(context.Background(), filename, provider); err != nil {
+					log.Printf("Warning: Failed to enqueue OCR task: %v", err)
+				} else {
+					log.Printf("OCR task queued for file: %s (provider: %s)", filename, provider)
+				}
+			}()
+		}
+	}
+
 	return stream.SendAndClose(status)
 }
 
@@ -214,6 +243,160 @@ func (s *ApplicationService) ListFiles(ctx context.Context, req *proto.FileListR
 	
 	return &proto.FileListResponse{
 		Files: files,
+	}, nil
+}
+
+// ProcessOCR ?OCR???????????????????????
+func (s *ApplicationService) ProcessOCR(ctx context.Context, req *proto.OCRRequest) (*proto.OCRResponse, error) {
+	if s.ocrClient == nil {
+		return nil, fmt.Errorf("OCR client is not available")
+	}
+	
+	// ???????????????????OCR???????????????
+	// ??: ????????OCR?????????????????????????
+	// ????OCR?????????????????
+	
+	// OCR??????????????????????
+	// ?????????????OCR??????????????
+	_, err := s.ocrClient.ProcessDocument(ctx, req.Filename, nil, req.StorageProvider)
+	if err != nil {
+		return &proto.OCRResponse{
+			TaskId:  "",
+			Success: false,
+			Message: fmt.Sprintf("Failed to start OCR processing: %v", err),
+		}, nil // ?????????????????????
+	}
+	
+	// taskID????????OCR????????????????????
+	taskID := req.Filename + "_" + req.StorageProvider + "_" + fmt.Sprintf("%d", time.Now().Unix())
+	
+	return &proto.OCRResponse{
+		TaskId:  taskID,
+		Success: true,
+		Message: "OCR processing started",
+	}, nil
+}
+
+// GetOCRResult ?OCR???????
+func (s *ApplicationService) GetOCRResult(ctx context.Context, req *proto.OCRResultRequest) (*proto.OCRResultResponse, error) {
+	if s.ocrClient == nil {
+		return nil, fmt.Errorf("OCR client is not available")
+	}
+	
+	engineName := req.EngineName
+	if engineName == "" {
+		engineName = "tesseract" // ?????
+	}
+	
+	result, err := s.ocrClient.GetOCRResult(ctx, req.Filename, req.StorageProvider, engineName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get OCR result: %w", err)
+	}
+	
+	if result == nil {
+		return &proto.OCRResultResponse{
+			Filename:  req.Filename,
+			EngineName: engineName,
+			Status:    "not_found",
+		}, nil
+	}
+	
+	// OCRPage???
+	pages := make([]*proto.OCRPage, len(result.Pages))
+	for i, page := range result.Pages {
+		pages[i] = &proto.OCRPage{
+			PageNumber: int32(page.PageNumber),
+			Text:       page.Text,
+			Confidence: page.Confidence,
+		}
+	}
+	
+	errorMsg := ""
+	if result.Error != nil {
+		errorMsg = result.Error.Error()
+	}
+	
+	return &proto.OCRResultResponse{
+		Filename:     result.Filename,
+		EngineName:   result.EngineName,
+		ExtractedText: result.ExtractedText,
+		Pages:        pages,
+		Status:       result.Status,
+		ErrorMessage: errorMsg,
+		Confidence:   result.Confidence,
+		ProcessedAt:  result.ProcessedAt.Unix(),
+	}, nil
+}
+
+// ListOCRResults ?OCR?????????
+func (s *ApplicationService) ListOCRResults(ctx context.Context, req *proto.OCRListRequest) (*proto.OCRListResponse, error) {
+	if s.ocrResultRepo == nil {
+		return nil, fmt.Errorf("OCR result repository is not available")
+	}
+	
+	results, err := s.ocrResultRepo.ListOCRResults(ctx, req.StorageProvider)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list OCR results: %w", err)
+	}
+	
+	summaries := make([]*proto.OCRResultSummary, len(results))
+	for i, result := range results {
+		summaries[i] = &proto.OCRResultSummary{
+			Filename:    result.Filename,
+			EngineName:  result.EngineName,
+			Status:      result.Status,
+			ProcessedAt: result.ProcessedAt.Unix(),
+		}
+	}
+	
+	return &proto.OCRListResponse{
+		Results: summaries,
+	}, nil
+}
+
+// CompareOCRResults ????????OCR????????Phase 2B?
+func (s *ApplicationService) CompareOCRResults(ctx context.Context, req *proto.OCRComparisonRequest) (*proto.OCRComparisonResponse, error) {
+	if s.ocrResultRepo == nil {
+		return nil, fmt.Errorf("OCR result repository is not available")
+	}
+	
+	results, err := s.ocrResultRepo.GetOCRComparison(ctx, req.Filename, req.StorageProvider)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get OCR comparison: %w", err)
+	}
+	
+	pbResults := make([]*proto.OCRResultResponse, len(results))
+	for i, result := range results {
+		pages := make([]*proto.OCRPage, len(result.Pages))
+		for j, page := range result.Pages {
+			pages[j] = &proto.OCRPage{
+				PageNumber: int32(page.PageNumber),
+				Text:       page.Text,
+				Confidence: page.Confidence,
+			}
+		}
+		
+		errorMsg := ""
+		if result.Error != nil {
+			errorMsg = result.Error.Error()
+		}
+		
+		pbResults[i] = &proto.OCRResultResponse{
+			Filename:     result.Filename,
+			EngineName:   result.EngineName,
+			ExtractedText: result.ExtractedText,
+			Pages:        pages,
+			Status:       result.Status,
+			ErrorMessage: errorMsg,
+			Confidence:   result.Confidence,
+			ProcessedAt:  result.ProcessedAt.Unix(),
+		}
+	}
+	
+	return &proto.OCRComparisonResponse{
+		Filename:      req.Filename,
+		StorageProvider: req.StorageProvider,
+		Results:       pbResults,
 	}, nil
 }
 

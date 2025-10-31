@@ -1,4 +1,4 @@
-import { GreetingResponse, ChatMessage, FileUploadStatus, FileListResponse } from '../types';
+import { GreetingResponse, ChatMessage, FileUploadStatus, FileListResponse, OCRRequest, OCRResponse, OCRResultResponse, OCRListResponse, OCRComparisonResponse } from '../types';
 
 const API_BASE_URL = ''; // Proxy to Go backend
 const AUTH_TOKEN = 'my-secret-token';
@@ -154,6 +154,55 @@ export const deleteFileService = async (filename: string, storageProvider: strin
   });
   if (!response.ok) {
     throw new Error(`Failed to delete file: ${response.statusText}`);
+  }
+  return response.json();
+};
+
+// OCR related services
+export const processOCRService = async (filename: string, storageProvider: string): Promise<OCRResponse> => {
+  const response = await fetch(`${API_BASE_URL}/api/process-ocr`, {
+    method: 'POST',
+    headers: headers,
+    body: JSON.stringify({ filename, storage_provider: storageProvider }),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to process OCR: ${response.statusText}`);
+  }
+  return response.json();
+};
+
+export const getOCRResultService = async (filename: string, storageProvider: string, engineName: string = 'tesseract'): Promise<OCRResultResponse> => {
+  const response = await fetch(`${API_BASE_URL}/api/get-ocr-result?filename=${encodeURIComponent(filename)}&storageProvider=${encodeURIComponent(storageProvider)}&engineName=${encodeURIComponent(engineName)}`, {
+    headers: {
+      'Authorization': AUTH_TOKEN,
+    },
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to get OCR result: ${response.statusText}`);
+  }
+  return response.json();
+};
+
+export const listOCRResultsService = async (storageProvider: string): Promise<OCRListResponse> => {
+  const response = await fetch(`${API_BASE_URL}/api/list-ocr-results?storageProvider=${encodeURIComponent(storageProvider)}`, {
+    headers: {
+      'Authorization': AUTH_TOKEN,
+    },
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to list OCR results: ${response.statusText}`);
+  }
+  return response.json();
+};
+
+export const compareOCRResultsService = async (filename: string, storageProvider: string): Promise<OCRComparisonResponse> => {
+  const response = await fetch(`${API_BASE_URL}/api/compare-ocr-results?filename=${encodeURIComponent(filename)}&storageProvider=${encodeURIComponent(storageProvider)}`, {
+    headers: {
+      'Authorization': AUTH_TOKEN,
+    },
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to compare OCR results: ${response.statusText}`);
   }
   return response.json();
 };

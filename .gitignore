@@ -3,8 +3,13 @@
 *.test
 *.prof
 
+# Python virtual environment
+venv/
+__pycache__/
+*.pyc
+
 # Go module cache
-go.sum
+# Note: go.sum should be committed, so we don't ignore it
 
 # Downloaded archives
 *.tar.gz
