@@ -24,7 +24,7 @@ services:
       - LOCALSTACK_ENDPOINT=${LOCALSTACK_ENDPOINT}
       - GRPC_SERVER_PORT=${GRPC_SERVER_PORT}
       # GCS emulator
-      - STORAGE_EMULATOR_HOST=http://fake-gcs:4443
+      - STORAGE_EMULATOR_HOST=fake-gcs:4443
       - GOOGLE_CLOUD_PROJECT=dev-project
       - GCS_BUCKET_NAME=grpc-sample-bucket
       # Azure Storage emulator
@@ -55,14 +55,49 @@ services:
       - "8080:8080"
     depends_on:
       - server
+      - ocr-service
     networks:
       - grpc-network
     environment:
       - AUTH_TOKEN=${AUTH_TOKEN}
+      - OCR_SERVICE_ENDPOINT=http://ocr-service:50052
+
+  ocr-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.ocr
+    ports:
+      - "50052:50052"
+    volumes:
+      - server-data:/app/data
+    depends_on:
+      - server
+      - localstack
+      - fake-gcs
+      - azurite
+    networks:
+      - grpc-network
+    environment:
+      - AUTH_TOKEN=${AUTH_TOKEN}
+      - OCR_SERVICE_PORT=50052
+      - DB_PATH=/app/data/files.db
+      # ?????????????????????
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME}
+      - LOCALSTACK_ENDPOINT=http://localstack:4566
+      - STORAGE_EMULATOR_HOST=fake-gcs:4443
+      - GOOGLE_CLOUD_PROJECT=dev-project
+      - GCS_BUCKET_NAME=grpc-sample-bucket
+      - AZURE_STORAGE_ENDPOINT=http://azurite:10000
+      - AZURE_STORAGE_ACCOUNT_NAME=devstoreaccount1
+      - AZURE_STORAGE_ACCOUNT_KEY=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==
+      - AZURE_STORAGE_CONTAINER_NAME=grpc-sample-container
 
   fake-gcs:
     image: fsouza/fake-gcs-server:latest
-    command: ["-scheme", "http", "-port", "4443", "-backend", "memory"]
+    command: ["-scheme", "http", "-port", "4443", "-backend", "memory", "-public-host", "fake-gcs:4443"]
     ports:
       - "4443:4443"
     networks:
@@ -71,10 +106,10 @@ services:
   localstack:
     image: localstack/localstack:latest
     ports:
-      - "4566:4566"  # S3
+      - "4566:4566"  # S3, SQS, etc.
       - "4510-4559:4510-4559" # Other services
     environment:
-      - SERVICES=s3
+      - SERVICES=s3,sqs  # S3?SQS????
       - DEFAULT_REGION=${AWS_REGION}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
@@ -85,11 +120,22 @@ services:
     image: mcr.microsoft.com/azure-storage/azurite:latest
     ports:
       - "10000:10000"  # Blob service
-      - "10001:10001"  # Queue service
+      - "10001:10001"  # Queue service?Phase 2?????: localstackSQSService, azuriteQueueService, gcpPubSubService?
       - "10002:10002"  # Table service
     command: ["azurite", "--blobHost", "0.0.0.0", "--blobPort", "10000", "--queueHost", "0.0.0.0", "--queuePort", "10001", "--tableHost", "0.0.0.0", "--tablePort", "10002"]
     networks:
       - grpc-network
+
+  # GCP Pub/Sub???????Phase 2?????: gcpPubSubService?
+  # pubsub-emulator:
+  #   image: gcr.io/google.com/cloudsdktool/cloud-sdk:emulators
+  #   command: gcloud beta emulators pubsub start --host-port=0.0.0.0:8085
+  #   ports:
+  #     - "8085:8085"
+  #   networks:
+  #     - grpc-network
+  #   environment:
+  #     - PUBSUB_PROJECT_ID=dev-project
 
 volumes:
   server-data:

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Button, Badge, Table, Spinner } from 'react-bootstrap';
 import { useFileDownload } from '../hooks/useFileDownload';
 import { useFileList } from '../hooks/useFileList';
-import { deleteFileService } from '../services/grpcService';
+import { deleteFileService, processOCRService } from '../services/grpcService';
 import { AlertDialog } from './AlertDialog';
 
 interface FileDownloadProps {
@@ -17,10 +17,18 @@ const formatFileSize = (bytes: number): string => {
   return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
 };
 
+const formatDate = (timestamp?: number): string => {
+  if (!timestamp || timestamp === 0) return 'N/A';
+  const date = new Date(timestamp * 1000);
+  return date.toLocaleString();
+};
+
 const getNamespaceBadgeVariant = (namespace: string): string => {
   switch (namespace) {
     case 'documents':
       return 'info';
+    case 'images':
+      return 'warning';
     case 'media':
       return 'success';
     default:
@@ -33,6 +41,7 @@ export const FileDownload: React.FC<FileDownloadProps> = ({ storageProvider }) =
   const { downloadFilename, setDownloadFilename, downloadStatus, handleFileDownload } = useFileDownload(storageProvider);
   const [deleteStatus, setDeleteStatus] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [processingOCR, setProcessingOCR] = useState<string | null>(null);
   
   // Dialog states
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -82,6 +91,35 @@ export const FileDownload: React.FC<FileDownloadProps> = ({ storageProvider }) =
       setDeleting(null);
       setFileToDelete(null);
     }
+  };
+
+  const handleOCRStart = async (filename: string) => {
+    setProcessingOCR(filename);
+    try {
+      const response = await processOCRService(filename, storageProvider);
+      if (response.success) {
+        setStatusDialogTitle('OCR Started');
+        setStatusDialogMessage(`OCR processing started for "${filename}". Please check OCR Results page.`);
+        setStatusDialogVariant('success');
+      } else {
+        setStatusDialogTitle('OCR Start Failed');
+        setStatusDialogMessage(`Failed to start OCR: ${response.message || 'Unknown error'}`);
+        setStatusDialogVariant('danger');
+      }
+      setShowStatusDialog(true);
+    } catch (err) {
+      setStatusDialogTitle('OCR Error');
+      setStatusDialogMessage(`Error starting OCR: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      setStatusDialogVariant('danger');
+      setShowStatusDialog(true);
+    } finally {
+      setProcessingOCR(null);
+    }
+  };
+
+  // ?????OCR??????????documents/???images/namespace?
+  const isOCRTarget = (namespace: string): boolean => {
+    return namespace === 'documents' || namespace === 'images';
   };
 
   // Update status dialog when download status changes
@@ -141,40 +179,63 @@ export const FileDownload: React.FC<FileDownloadProps> = ({ storageProvider }) =
                 <th>Namespace</th>
                 <th>Filename</th>
                 <th>Size</th>
+                <th>Uploaded At</th>
                 <th>Action</th>
               </tr>
             </thead>
             <tbody>
-              {files.map((file, index) => (
-                <tr key={index}>
-                  <td>
-                    <Badge bg={getNamespaceBadgeVariant(file.namespace)}>
-                      {file.namespace}
-                    </Badge>
-                  </td>
-                  <td className="font-monospace small">{file.filename}</td>
-                  <td>{formatFileSize(file.size)}</td>
-                  <td>
-                    <div className="d-flex gap-2">
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        onClick={() => handleDownload(file.filename)}
-                      >
-                        Download
-                      </Button>
-                      <Button
-                        variant="danger"
-                        size="sm"
-                        onClick={() => handleDeleteClick(file.filename)}
-                        disabled={deleting === file.filename}
-                      >
-                        {deleting === file.filename ? 'Deleting...' : 'Delete'}
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {files.map((file, index) => {
+                const isOCR = isOCRTarget(file.namespace);
+                console.log(`File ${file.filename}: namespace="${file.namespace}", isOCRTarget=${isOCR}`);
+                return (
+                  <tr key={index}>
+                    <td>
+                      <Badge bg={getNamespaceBadgeVariant(file.namespace)}>
+                        {file.namespace}
+                      </Badge>
+                    </td>
+                    <td className="font-monospace small">{file.filename}</td>
+                    <td>{formatFileSize(file.size)}</td>
+                    <td className="small">{formatDate(file.uploaded_at)}</td>
+                    <td>
+                      <div className="d-flex gap-2">
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() => handleDownload(file.filename)}
+                        >
+                          Download
+                        </Button>
+                        {isOCR && (
+                          <Button
+                            variant="info"
+                            size="sm"
+                            onClick={() => handleOCRStart(file.filename)}
+                            disabled={processingOCR === file.filename}
+                          >
+                            {processingOCR === file.filename ? (
+                              <>
+                                <Spinner animation="border" size="sm" className="me-1" />
+                                Processing...
+                              </>
+                            ) : (
+                              'Start OCR'
+                            )}
+                          </Button>
+                        )}
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          onClick={() => handleDeleteClick(file.filename)}
+                          disabled={deleting === file.filename}
+                        >
+                          {deleting === file.filename ? 'Deleting...' : 'Delete'}
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </Table>
         </div>

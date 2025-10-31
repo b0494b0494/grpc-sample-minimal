@@ -22,6 +22,9 @@ type gcsStorageService struct {
 }
 
 func NewGCSStorageService(ctx context.Context) (StorageService, error) {
+    emulatorHost := os.Getenv("STORAGE_EMULATOR_HOST")
+    log.Printf("NewGCSStorageService: STORAGE_EMULATOR_HOST=%s, GCS_BUCKET_NAME=%s", emulatorHost, gcsBucketName)
+    
     client, err := storage.NewClient(ctx)
     if err != nil {
         return nil, fmt.Errorf("failed to create GCS client: %w", err)
@@ -33,10 +36,16 @@ func NewGCSStorageService(ctx context.Context) (StorageService, error) {
 
     // Ensure bucket exists (works against emulator)
     bucket := client.Bucket(gcsBucketName)
-    if _, err := bucket.Attrs(ctx); err != nil {
+    attrs, err := bucket.Attrs(ctx)
+    if err != nil {
+        log.Printf("NewGCSStorageService: Bucket %s does not exist, creating...", gcsBucketName)
         if err := bucket.Create(ctx, "dev-project", nil); err != nil {
             log.Printf("Warning: failed to create GCS bucket %s: %v", gcsBucketName, err)
+        } else {
+            log.Printf("NewGCSStorageService: Successfully created bucket %s", gcsBucketName)
         }
+    } else {
+        log.Printf("NewGCSStorageService: Bucket %s exists (location: %s)", gcsBucketName, attrs.Location)
     }
 
     return &gcsStorageService{client: client}, nil
@@ -66,6 +75,7 @@ func (s *gcsStorageService) UploadFile(ctx context.Context, filename string, con
 func (s *gcsStorageService) DownloadFile(ctx context.Context, filename string) (io.Reader, error) {
 	// Build storage path with namespace prefix
 	storagePath := BuildStoragePath(filename)
+	log.Printf("GCS DownloadFile: filename=%s, storagePath=%s", filename, storagePath)
 
     rc, err := s.client.Bucket(gcsBucketName).Object(storagePath).NewReader(ctx)
     if err != nil {
@@ -77,6 +87,24 @@ func (s *gcsStorageService) DownloadFile(ctx context.Context, filename string) (
     if err != nil {
         return nil, fmt.Errorf("failed to read GCS object: %w", err)
     }
+    return bytes.NewReader(data), nil
+}
+
+func (s *gcsStorageService) DownloadFileByPath(ctx context.Context, storagePath string) (io.Reader, error) {
+	log.Printf("GCS DownloadFileByPath: storagePath=%s, bucket=%s, emulator=%s", storagePath, gcsBucketName, os.Getenv("STORAGE_EMULATOR_HOST"))
+
+    rc, err := s.client.Bucket(gcsBucketName).Object(storagePath).NewReader(ctx)
+    if err != nil {
+        log.Printf("GCS DownloadFileByPath error details: bucket=%s, object=%s, error=%v", gcsBucketName, storagePath, err)
+        return nil, fmt.Errorf("failed to open GCS object: %w", err)
+    }
+    defer rc.Close()
+
+    data, err := ioutil.ReadAll(rc)
+    if err != nil {
+        return nil, fmt.Errorf("failed to read GCS object: %w", err)
+    }
+    log.Printf("GCS DownloadFileByPath: Successfully read %d bytes from %s", len(data), storagePath)
     return bytes.NewReader(data), nil
 }
 
@@ -117,6 +145,9 @@ func (s *gcsStorageService) ListFiles(ctx context.Context) ([]*pb.FileInfo, erro
         if strings.HasPrefix(name, "documents/") {
             namespace = "documents"
             filename = strings.TrimPrefix(name, "documents/")
+        } else if strings.HasPrefix(name, "images/") {
+            namespace = "images"
+            filename = strings.TrimPrefix(name, "images/")
         } else if strings.HasPrefix(name, "media/") {
             namespace = "media"
             filename = strings.TrimPrefix(name, "media/")

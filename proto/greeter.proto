@@ -14,6 +14,18 @@ service Greeter {
   rpc DownloadFile (FileDownloadRequest) returns (stream FileChunk) {}
   rpc ListFiles (FileListRequest) returns (FileListResponse) {}
   rpc DeleteFile (DeleteFileRequest) returns (DeleteFileResponse) {}
+  
+  // OCR????????????
+  rpc ProcessOCR (OCRRequest) returns (OCRResponse) {}
+  
+  // OCR????
+  rpc GetOCRResult (OCRResultRequest) returns (OCRResultResponse) {}
+  
+  // OCR??????
+  rpc ListOCRResults (OCRListRequest) returns (OCRListResponse) {}
+  
+  // ??OCR????????Phase 2B???
+  rpc CompareOCRResults (OCRComparisonRequest) returns (OCRComparisonResponse) {}
 }
       
       // The request message containing the user's name.
@@ -79,6 +91,7 @@ service Greeter {
         string filename = 1;
         string namespace = 2;
         int64 size = 3;
+        int64 uploaded_at = 4; // Unix timestamp
       }
       
       // Message for file delete request.
@@ -87,8 +100,78 @@ service Greeter {
         string storage_provider = 2;
       }
       
-      // Message for file delete response.
-      message DeleteFileResponse {
-        bool success = 1;
-        string message = 2;
-      }
+  // Message for file delete response.
+  message DeleteFileResponse {
+    bool success = 1;
+    string message = 2;
+  }
+  
+  // OCR Request
+  message OCRRequest {
+    string filename = 1;
+    string storage_provider = 2;  // "azure", "s3", "gcs"????"azure"????????????
+  }
+  
+  // OCR Response
+  message OCRResponse {
+    string task_id = 1;  // ??????ID
+    bool success = 2;
+    string message = 3;
+  }
+  
+  // OCR Result Request
+  message OCRResultRequest {
+    string filename = 1;
+    string storage_provider = 2;
+    string engine_name = 3;  // "tesseract", "easyocr", "paddleocr"?Phase 2B???
+  }
+  
+  // OCR Result Response
+  message OCRResultResponse {
+    string filename = 1;
+    string engine_name = 2;  // "tesseract", "easyocr", "paddleocr"
+    string extracted_text = 3;
+    repeated OCRPage pages = 4;  // PDF??????????
+    string status = 5;  // "processing", "completed", "failed"
+    string error_message = 6;
+    double confidence = 7;  // ?????
+    int64 processed_at = 8;
+  }
+  
+  // OCR Page (for multi-page documents)
+  message OCRPage {
+    int32 page_number = 1;
+    string text = 2;
+    double confidence = 3;
+  }
+  
+  // OCR List Request
+  message OCRListRequest {
+    string storage_provider = 1;
+  }
+  
+  // OCR List Response
+  message OCRListResponse {
+    repeated OCRResultSummary results = 1;
+  }
+  
+  // OCR Result Summary
+  message OCRResultSummary {
+    string filename = 1;
+    string engine_name = 2;
+    string status = 3;
+    int64 processed_at = 4;
+  }
+  
+  // OCR Comparison Request (Phase 2B)
+  message OCRComparisonRequest {
+    string filename = 1;
+    string storage_provider = 2;
+  }
+  
+  // OCR Comparison Response (Phase 2B)
+  message OCRComparisonResponse {
+    string filename = 1;
+    string storage_provider = 2;
+    repeated OCRResultResponse results = 3;  // ????????????
+  }
