@@ -211,7 +211,7 @@ export const FileDownload: React.FC<FileDownloadProps> = ({ storageProvider }) =
                             onClick={() => setPreviewFilename(file.filename)}
                             title="Preview file"
                           >
-                            ??? Preview
+                            Preview
                           </Button>
                         )}
                         <Button
