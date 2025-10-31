@@ -6,9 +6,13 @@ This is a minimal gRPC sample application implemented in Go, demonstrating basic
 
 - `proto/`: Contains the Protocol Buffer definition (`greeter.proto`) and the generated Go code.
 - `server/`: Implements the gRPC server with a layered architecture (domain, application, infrastructure) including authentication and logging interceptors.
-  - `server/domain/`: Domain layer with storage service implementations (S3, GCS, Azure Blob Storage)
+  - `server/domain/`: Domain layer with storage service implementations (S3, GCS, Azure Blob Storage) and SQLite database repository
+  - `server/application/`: Application layer service orchestrating gRPC calls and file operations
 - `client/`: Implements the gRPC client with authentication and logging interceptors.
-- `webapp/`: Contains a React frontend application (now in TypeScript with an API service layer, custom hooks, and component-based structure) and a Go backend that exposes API endpoints for gRPC calls.
+- `webapp/`: Contains a React frontend application (TypeScript with React Bootstrap, API service layer, custom hooks, and component-based structure) and a Go backend that exposes HTTP API endpoints for gRPC calls.
+  - `webapp/src/components/`: React components including `AlertDialog` for modal dialogs
+  - `webapp/src/hooks/`: Custom React hooks for file operations
+  - `webapp/src/services/`: API service layer for gRPC calls
 - `Dockerfile.server`: Dockerfile for building the gRPC server image.
 - `Dockerfile.client`: Dockerfile for building the gRPC client image.
 - `Dockerfile.webapp`: Dockerfile for building the web application image (React frontend + Go backend).
@@ -34,11 +38,14 @@ This application uses Docker Compose for easy setup and execution.
     S3_BUCKET_NAME=grpc-sample-bucket
     LOCALSTACK_ENDPOINT=http://localstack:4566
     GRPC_SERVER_PORT=50051
+    DB_PATH=/app/data/files.db
     ```
-    *Note: The `AUTH_TOKEN` is used for gRPC authentication. `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `S3_BUCKET_NAME`, and `LOCALSTACK_ENDPOINT` are for Localstack S3 integration. `GRPC_SERVER_PORT` defines the port the gRPC server listens on.*
+    *Note: The `AUTH_TOKEN` is used for gRPC authentication. `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `S3_BUCKET_NAME`, and `LOCALSTACK_ENDPOINT` are for Localstack S3 integration. `GRPC_SERVER_PORT` defines the port the gRPC server listens on. `DB_PATH` specifies the path to the SQLite database file for file metadata storage.*
     
     **Azure Storage Emulator:** Azure Blob Storage configuration is handled automatically in `docker-compose.yml`. For production use, you would set:
     - `AZURE_STORAGE_CONNECTION_STRING`: Connection string for real Azure Storage (when not using emulator)
+    
+    **Database:** The SQLite database is automatically created on first run. The database file is persisted in a Docker volume (`server-data`) mounted at `/app/data` in the server container.
 
 4.  **Build and Run with Docker Compose:** Execute the following command to build the Docker images and start all services:
     ```bash
@@ -93,11 +100,16 @@ This application uses Docker Compose for easy setup and execution.
 
 5.  **Access the Web Application:** Open your web browser and go to `http://localhost:8080`.
     - The React application will load, and you can interact with the gRPC services through its UI.
-    - Navigate to the **Files** page to test file upload/download functionality.
+    - Navigate to the **Files** page to test file operations:
+      - **Upload**: Select a file and upload it to the chosen storage provider
+      - **List**: View all uploaded files with their metadata (filename, size, namespace)
+      - **Download**: Download files from storage
+      - **Delete**: Remove files from storage and database
     - You can switch between different storage providers:
       - **AWS S3 (Localstack)**: Uses Localstack emulator
       - **Google Cloud Storage (fake-gcs)**: Uses fake-gcs-server emulator
       - **Azure Blob Storage (Azurite)**: Uses Azurite emulator
+    - Files are automatically categorized into namespaces (documents/media/others) based on file type
 
 6.  **Stop the Application:** To stop and remove the containers, press `Ctrl+C` in the terminal where `docker-compose up` is running (if running in foreground mode). For detached mode, or to clean up:
     ```bash
@@ -125,6 +137,20 @@ All storage providers can be selected from the web UI, and files uploaded/downlo
 
 - **gRPC Communication**: Unary, server streaming, client streaming, and bidirectional streaming
 - **Authentication**: Token-based authentication for gRPC calls
-- **File Operations**: Upload and download files to/from multiple cloud storage providers
+- **File Operations**: 
+  - Upload files to multiple cloud storage providers
+  - Download files from storage
+  - List uploaded files with metadata
+  - Delete files from storage
+  - Automatic file categorization by type (documents, media, others)
+- **SQLite Database**: File metadata management for tracking uploaded files
 - **Storage Emulators**: Local development support for AWS S3, GCS, and Azure Blob Storage
-- **Web UI**: React-based frontend for interacting with gRPC services
+- **Web UI**: 
+  - React-based frontend (TypeScript) with React Bootstrap components
+  - Modal dialogs for user feedback and confirmations
+  - File list with namespace badges (documents/media/others)
+  - Storage provider selection (S3/GCS/Azure)
+- **File Namespace Classification**: Files are automatically categorized into namespaces:
+  - `documents/`: Document files (PDF, DOC, TXT, etc.)
+  - `media/`: Image and video files (JPG, PNG, MP4, etc.)
+  - `others/`: Other file types
