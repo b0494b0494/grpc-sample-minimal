@@ -4,19 +4,22 @@ This is a minimal gRPC sample application implemented in Go, demonstrating basic
 
 ## Project Structure
 
-- `proto/`: Contains the Protocol Buffer definition (`greeter.proto`) and the generated Go code.
+- `proto/`: Contains the Protocol Buffer definition (`greeter.proto`) and the generated Go code with namespace `grpc-sample-minimal/proto/`.
 - `server/`: Implements the gRPC server with a layered architecture (domain, application, infrastructure) including authentication and logging interceptors.
-  - `server/domain/`: Domain layer with storage service implementations (S3, GCS, Azure Blob Storage) and SQLite database repository
-  - `server/application/`: Application layer service orchestrating gRPC calls and file operations
+  - `server/domain/`: Domain layer with storage service implementations (S3, GCS, Azure Blob Storage), OCR services (Tesseract), document converters, and SQLite database repository
+  - `server/application/`: Application layer service orchestrating gRPC calls, file operations, and OCR processing
+- `server/ocr/`: Standalone OCR service that processes images and documents using Tesseract OCR engine.
 - `client/`: Implements the gRPC client with authentication and logging interceptors.
 - `webapp/`: Contains a React frontend application (TypeScript with React Bootstrap, API service layer, custom hooks, and component-based structure) and a Go backend that exposes HTTP API endpoints for gRPC calls.
-  - `webapp/src/components/`: React components including `AlertDialog` for modal dialogs
-  - `webapp/src/hooks/`: Custom React hooks for file operations
-  - `webapp/src/services/`: API service layer for gRPC calls
+  - `webapp/src/components/`: React components including `AlertDialog` for modal dialogs and `OCRResults` for displaying OCR processing results
+  - `webapp/src/hooks/`: Custom React hooks for file operations and OCR results
+  - `webapp/src/services/`: API service layer for gRPC calls and OCR operations
+  - `webapp/handlers/`: HTTP handlers for file operations and OCR endpoints
 - `Dockerfile.server`: Dockerfile for building the gRPC server image.
 - `Dockerfile.client`: Dockerfile for building the gRPC client image.
 - `Dockerfile.webapp`: Dockerfile for building the web application image (React frontend + Go backend).
-- `docker-compose.yml`: Defines and runs the multi-container Docker application with storage emulators (Localstack, fake-gcs, Azurite).
+- `Dockerfile.ocr`: Dockerfile for building the OCR service image with Tesseract OCR engine.
+- `docker-compose.yml`: Defines and runs the multi-container Docker application with storage emulators (Localstack, fake-gcs, Azurite) and OCR service.
 
 ## How to Run
 
@@ -38,9 +41,10 @@ This application uses Docker Compose for easy setup and execution.
     S3_BUCKET_NAME=grpc-sample-bucket
     LOCALSTACK_ENDPOINT=http://localstack:4566
     GRPC_SERVER_PORT=50051
+    OCR_SERVICE_PORT=50052
     DB_PATH=/app/data/files.db
     ```
-    *Note: The `AUTH_TOKEN` is used for gRPC authentication. `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `S3_BUCKET_NAME`, and `LOCALSTACK_ENDPOINT` are for Localstack S3 integration. `GRPC_SERVER_PORT` defines the port the gRPC server listens on. `DB_PATH` specifies the path to the SQLite database file for file metadata storage.*
+    *Note: The `AUTH_TOKEN` is used for gRPC authentication. `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `S3_BUCKET_NAME`, and `LOCALSTACK_ENDPOINT` are for Localstack S3 integration. `GRPC_SERVER_PORT` defines the port the gRPC server listens on. `OCR_SERVICE_PORT` defines the port the OCR service listens on (default: 50052). `DB_PATH` specifies the path to the SQLite database file for file metadata and OCR results storage.*
     
     **Azure Storage Emulator:** Azure Blob Storage configuration is handled automatically in `docker-compose.yml`. For production use, you would set:
     - `AZURE_STORAGE_CONNECTION_STRING`: Connection string for real Azure Storage (when not using emulator)
@@ -57,7 +61,12 @@ This application uses Docker Compose for easy setup and execution.
     docker-compose up --build -d
     ```
 
-    You should see output from the `server`, `client`, and storage emulator services in your terminal. The `webapp` will be accessible via your browser.
+    You should see output from the `server`, `client`, `ocr-service`, and storage emulator services in your terminal. The `webapp` will be accessible via your browser.
+
+    **Services:**
+    - **server:** Main gRPC server handling file operations and gRPC requests (port 50051)
+    - **ocr-service:** Standalone OCR service for processing images and documents with Tesseract (port 50052)
+    - **webapp:** Web application with React frontend and Go backend (port 8080)
 
     **Storage Emulators:**
     - **Localstack:** The `localstack` service emulates AWS S3 locally. The server will attempt to create an S3 bucket named `grpc-sample-bucket` on startup.
@@ -105,6 +114,11 @@ This application uses Docker Compose for easy setup and execution.
       - **List**: View all uploaded files with their metadata (filename, size, namespace)
       - **Download**: Download files from storage
       - **Delete**: Remove files from storage and database
+    - Navigate to the **OCR** page to process images and documents:
+      - **Process OCR**: Select an uploaded image file and trigger OCR processing
+      - **List Results**: View all OCR processing results with metadata
+      - **Get Result**: View detailed OCR result for a specific file and engine
+      - **Compare Results**: Compare OCR results from different engines (when multiple engines are available)
     - You can switch between different storage providers:
       - **AWS S3 (Localstack)**: Uses Localstack emulator
       - **Google Cloud Storage (fake-gcs)**: Uses fake-gcs-server emulator
@@ -143,13 +157,21 @@ All storage providers can be selected from the web UI, and files uploaded/downlo
   - List uploaded files with metadata
   - Delete files from storage
   - Automatic file categorization by type (documents, media, others)
-- **SQLite Database**: File metadata management for tracking uploaded files
+- **OCR (Optical Character Recognition)**:
+  - Process images and documents using Tesseract OCR engine
+  - Extract text from uploaded image files
+  - View OCR processing results with confidence scores
+  - List and manage OCR results for multiple files
+  - Compare OCR results from different engines (when multiple engines are available)
+  - OCR service runs as a separate microservice for scalability
+- **SQLite Database**: File metadata management for tracking uploaded files and OCR results
 - **Storage Emulators**: Local development support for AWS S3, GCS, and Azure Blob Storage
 - **Web UI**: 
   - React-based frontend (TypeScript) with React Bootstrap components
   - Modal dialogs for user feedback and confirmations
   - File list with namespace badges (documents/media/others)
   - Storage provider selection (S3/GCS/Azure)
+  - OCR results page for viewing and managing OCR processing
 - **File Namespace Classification**: Files are automatically categorized into namespaces:
   - `documents/`: Document files (PDF, DOC, TXT, etc.)
   - `media/`: Image and video files (JPG, PNG, MP4, etc.)
