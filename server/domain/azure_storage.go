@@ -103,10 +103,13 @@ func (s *azureStorageService) UploadFile(ctx context.Context, filename string, c
 		return nil, fmt.Errorf("failed to read content for Azure upload: %w", err)
 	}
 
+	// Build storage path with namespace prefix (documents/, media/, or others/)
+	storagePath := buildStoragePath(filename)
+
 	// Get block blob client
 	serviceClient := s.blobClient.ServiceClient()
 	containerClient := serviceClient.NewContainerClient(s.containerName)
-	blockBlobClient := containerClient.NewBlockBlobClient(filename)
+	blockBlobClient := containerClient.NewBlockBlobClient(storagePath)
 
 	// Upload the buffer
 	_, err = blockBlobClient.UploadBuffer(ctx, contentBytes, nil)
@@ -117,16 +120,19 @@ func (s *azureStorageService) UploadFile(ctx context.Context, filename string, c
 	return &pb.FileUploadStatus{
 		Filename:        filename,
 		Success:         true,
-		Message:         fmt.Sprintf("File %s uploaded to Azure Blob Storage", filename),
+		Message:         fmt.Sprintf("File %s uploaded to Azure Blob Storage at %s", filename, storagePath),
 		StorageProvider: "azure",
 	}, nil
 }
 
 func (s *azureStorageService) DownloadFile(ctx context.Context, filename string) (io.Reader, error) {
+	// Build storage path with namespace prefix
+	storagePath := buildStoragePath(filename)
+
 	// Get block blob client
 	serviceClient := s.blobClient.ServiceClient()
 	containerClient := serviceClient.NewContainerClient(s.containerName)
-	blockBlobClient := containerClient.NewBlockBlobClient(filename)
+	blockBlobClient := containerClient.NewBlockBlobClient(storagePath)
 
 	// Download the blob
 	resp, err := blockBlobClient.DownloadStream(ctx, nil)

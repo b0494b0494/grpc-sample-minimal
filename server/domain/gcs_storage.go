@@ -42,7 +42,10 @@ func NewGCSStorageService(ctx context.Context) (StorageService, error) {
 }
 
 func (s *gcsStorageService) UploadFile(ctx context.Context, filename string, content io.Reader) (*pb.FileUploadStatus, error) {
-    wc := s.client.Bucket(gcsBucketName).Object(filename).NewWriter(ctx)
+	// Build storage path with namespace prefix (documents/, media/, or others/)
+	storagePath := buildStoragePath(filename)
+
+    wc := s.client.Bucket(gcsBucketName).Object(storagePath).NewWriter(ctx)
     if _, err := io.Copy(wc, content); err != nil {
         _ = wc.Close()
         return nil, fmt.Errorf("failed to write object to GCS: %w", err)
@@ -54,13 +57,16 @@ func (s *gcsStorageService) UploadFile(ctx context.Context, filename string, con
     return &pb.FileUploadStatus{
         Filename:        filename,
         Success:         true,
-        Message:         fmt.Sprintf("File %s uploaded to GCS", filename),
+        Message:         fmt.Sprintf("File %s uploaded to GCS at %s", filename, storagePath),
         StorageProvider: "gcs",
     }, nil
 }
 
 func (s *gcsStorageService) DownloadFile(ctx context.Context, filename string) (io.Reader, error) {
-    rc, err := s.client.Bucket(gcsBucketName).Object(filename).NewReader(ctx)
+	// Build storage path with namespace prefix
+	storagePath := buildStoragePath(filename)
+
+    rc, err := s.client.Bucket(gcsBucketName).Object(storagePath).NewReader(ctx)
     if err != nil {
         return nil, fmt.Errorf("failed to open GCS object: %w", err)
     }

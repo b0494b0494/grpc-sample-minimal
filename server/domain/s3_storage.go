@@ -78,9 +78,12 @@ func (s *s3StorageService) UploadFile(ctx context.Context, filename string, cont
 	}
 	reader := bytes.NewReader(contentBytes)
 
+	// Build storage path with namespace prefix (documents/, media/, or others/)
+	storagePath := buildStoragePath(filename)
+
 	_, err = s.s3Client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket: aws.String(s3BucketName),
-		Key:    aws.String(filename),
+		Key:    aws.String(storagePath),
 		Body:   reader,
 		ContentLength: aws.Int64(int64(len(contentBytes))),
 	})
@@ -91,14 +94,17 @@ func (s *s3StorageService) UploadFile(ctx context.Context, filename string, cont
 	return &pb.FileUploadStatus{
 		Filename: filename,
 		Success:  true,
-		Message:  fmt.Sprintf("File %s uploaded to S3", filename),
+		Message:  fmt.Sprintf("File %s uploaded to S3 at %s", filename, storagePath),
 	}, nil
 }
 
 func (s *s3StorageService) DownloadFile(ctx context.Context, filename string) (io.Reader, error) {
+	// Build storage path with namespace prefix
+	storagePath := buildStoragePath(filename)
+
 	resp, err := s.s3Client.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(s3BucketName),
-		Key:    aws.String(filename),
+		Key:    aws.String(storagePath),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to download file from S3: %w", err)
