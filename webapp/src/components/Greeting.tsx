@@ -1,27 +1,25 @@
 import React from 'react';
+import { Form, Button } from 'react-bootstrap';
 import { useGreeting } from '../hooks';
 
 export const Greeting: React.FC = () => {
   const { name, setName, greeting, handleSayHello } = useGreeting();
 
   return (
-    <section className="bg-gray-50 rounded-lg p-6 border border-gray-200">
-      <h2 className="text-xl font-semibold text-gray-900 mb-4">Unary RPC: SayHello</h2>
-      <form onSubmit={handleSayHello} className="flex gap-3 mb-4">
-        <input
+    <section className="bg-light rounded p-4 border shadow-sm">
+      <h2 className="h4 fw-semibold mb-3">Unary RPC: SayHello</h2>
+      <Form onSubmit={handleSayHello} className="d-flex flex-column flex-sm-row gap-2 mb-3">
+        <Form.Control
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Enter your name"
-          className="flex-1 px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
+          className="flex-grow-1"
         />
-        <button 
-          type="submit"
-          className="px-6 py-2 bg-primary-600 text-white font-medium rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors"
-        >
+        <Button variant="primary" type="submit">
           Say Hello
-        </button>
-      </form>
+        </Button>
+      </Form>
       {greeting && (
         <div className={`p-3 rounded-md ${
           greeting.startsWith('Error') || greeting.startsWith('Network Error') 

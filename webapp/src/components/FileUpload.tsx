@@ -1,4 +1,5 @@
 import React from 'react';
+import { Form, Button, Badge } from 'react-bootstrap';
 import { useFileUpload } from '../hooks';
 
 interface FileUploadProps {
@@ -9,25 +10,19 @@ export const FileUpload: React.FC<FileUploadProps> = ({ storageProvider }) => {
   const { selectedFile, uploadStatus, handleFileChange, handleFileUpload } = useFileUpload(storageProvider);
 
   return (
-    <section className="bg-gray-50 rounded-lg p-6 border border-gray-200">
-      <h3 className="text-xl font-semibold text-gray-900 mb-4">File Upload</h3>
-      <form onSubmit={handleFileUpload} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Select File:
-          </label>
-          <input 
-            type="file" 
-            onChange={handleFileChange}
-            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 cursor-pointer"
-          />
-        </div>
-        <button 
-          type="submit"
-          className="px-6 py-2 bg-primary-600 text-white font-medium rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
+    <section className="bg-light rounded p-4 border shadow-sm">
+      <div className="d-flex align-items-center gap-2 mb-3">
+        <h3 className="h5 fw-semibold mb-0">File Upload</h3>
+        <Badge bg="primary">{storageProvider.toUpperCase()}</Badge>
+      </div>
+      <Form onSubmit={handleFileUpload} className="d-flex flex-column gap-3">
+        <Form.Group>
+          <Form.Label>Select File:</Form.Label>
+          <Form.Control type="file" onChange={handleFileChange} />
+        </Form.Group>
+        <Button variant="primary" type="submit">
           Upload File
-        </button>
+        </Button>
         {uploadStatus && (
           <div className={`p-3 rounded-md ${
             uploadStatus.includes('successful') || uploadStatus.includes('success')
@@ -39,7 +34,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ storageProvider }) => {
             <p className="text-sm font-medium">{uploadStatus}</p>
           </div>
         )}
-      </form>
+      </Form>
     </section>
   );
 };

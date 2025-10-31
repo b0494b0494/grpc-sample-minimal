@@ -1,4 +1,5 @@
 import React from 'react';
+import { Form, Button, Badge } from 'react-bootstrap';
 import { useFileDownload } from '../hooks';
 
 interface FileDownloadProps {
@@ -9,27 +10,24 @@ export const FileDownload: React.FC<FileDownloadProps> = ({ storageProvider }) =
   const { downloadFilename, setDownloadFilename, downloadStatus, handleFileDownload } = useFileDownload(storageProvider);
 
   return (
-    <section className="bg-gray-50 rounded-lg p-6 border border-gray-200">
-      <h3 className="text-xl font-semibold text-gray-900 mb-4">File Download</h3>
-      <form onSubmit={handleFileDownload} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Filename:
-          </label>
-          <input
+    <section className="bg-light rounded p-4 border shadow-sm">
+      <div className="d-flex align-items-center gap-2 mb-3">
+        <h3 className="h5 fw-semibold mb-0">File Download</h3>
+        <Badge bg="primary">{storageProvider.toUpperCase()}</Badge>
+      </div>
+      <Form onSubmit={handleFileDownload} className="d-flex flex-column gap-3">
+        <Form.Group>
+          <Form.Label>Filename:</Form.Label>
+          <Form.Control
             type="text"
             value={downloadFilename}
             onChange={(e) => setDownloadFilename(e.target.value)}
             placeholder="Enter filename to download"
-            className="block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
           />
-        </div>
-        <button 
-          type="submit"
-          className="px-6 py-2 bg-primary-600 text-white font-medium rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
+        </Form.Group>
+        <Button variant="primary" type="submit">
           Download File
-        </button>
+        </Button>
         {downloadStatus && (
           <div className={`p-3 rounded-md ${
             downloadStatus.includes('successful') || downloadStatus.includes('success')
@@ -41,7 +39,7 @@ export const FileDownload: React.FC<FileDownloadProps> = ({ storageProvider }) =
             <p className="text-sm font-medium">{downloadStatus}</p>
           </div>
         )}
-      </form>
+      </Form>
     </section>
   );
 };
