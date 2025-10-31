@@ -22,3 +22,13 @@ export interface FileDownloadRequest {
   storageProvider?: string;
 }
 
+export interface FileInfo {
+  filename: string;
+  namespace: string;
+  size: number;
+}
+
+export interface FileListResponse {
+  files: FileInfo[];
+}
+

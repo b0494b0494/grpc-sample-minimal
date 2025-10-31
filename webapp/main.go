@@ -41,6 +41,8 @@ func main() {
     http.HandleFunc("/api/send-chat", handlers.SendChatHandler)
     http.HandleFunc("/api/upload-file", handlers.UploadFileHandler)
     http.HandleFunc("/api/download-file", handlers.DownloadFileHandler)
+	http.HandleFunc("/api/list-files", handlers.ListFilesHandler)
+	http.HandleFunc("/api/delete-file", handlers.DeleteFileHandler)
 
     log.Printf("Web server listening on port %s", webPort)
     log.Fatal(http.ListenAndServe(webPort, nil))

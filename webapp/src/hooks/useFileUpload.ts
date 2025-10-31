@@ -19,16 +19,38 @@ export const useFileUpload = (storageProvider: string) => {
       return;
     }
 
+    // Validate file name
+    if (!selectedFile.name || selectedFile.name.trim() === '') {
+      setUploadStatus('Please select a file with a valid filename.');
+      return;
+    }
+
     setUploadStatus('Uploading...');
     try {
       const data: FileUploadStatus = await uploadFileService(selectedFile, storageProvider);
-      if (data.success) {
-        setUploadStatus(`Upload successful: ${data.message} (${data.bytesWritten} bytes) to ${data.storageProvider}`);
+      
+      console.log('Upload result:', data);
+      
+      // Determine success: check success field first, then message content
+      const isSuccess = data.success === true || 
+                       (data.success !== false && 
+                        data.message && 
+                        (data.message.toLowerCase().includes('uploaded') || 
+                         data.message.toLowerCase().includes('success')));
+      
+      if (isSuccess) {
+        setUploadStatus(`Upload successful: ${data.message || 'File uploaded successfully'}`);
+        // Clear the selected file after successful upload
+        setSelectedFile(null);
       } else {
-        setUploadStatus(`Upload failed: ${data.message || 'Unknown error'}`);
+        const failureMessage = data.message || data.error || 'Upload failed';
+        setUploadStatus(`Upload failed: ${failureMessage}`);
+        console.error('Upload failed:', data);
       }
     } catch (error: any) {
-      setUploadStatus(`Network Error: ${error.message}`);
+      console.error('Upload error details:', error);
+      const errorMsg = error?.message || error?.toString() || 'Unknown error';
+      setUploadStatus(`Upload failed: ${errorMsg}`);
     }
   };
 

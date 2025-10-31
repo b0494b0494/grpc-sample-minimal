@@ -1,4 +1,4 @@
-import { GreetingResponse, ChatMessage, FileUploadStatus } from '../types';
+import { GreetingResponse, ChatMessage, FileUploadStatus, FileListResponse } from '../types';
 
 const API_BASE_URL = ''; // Proxy to Go backend
 const AUTH_TOKEN = 'my-secret-token';
@@ -62,8 +62,15 @@ export const sendChatMessageService = async (user: string, message: string): Pro
 };
 
 export const uploadFileService = async (file: File, storageProvider: string): Promise<FileUploadStatus> => {
+  // Validate file name
+  if (!file.name || file.name.trim() === '') {
+    throw new Error('File must have a valid name');
+  }
+
+  console.log('Uploading file:', { name: file.name, size: file.size, type: file.type });
+
   const formData = new FormData();
-  formData.append('uploadFile', file);
+  formData.append('uploadFile', file, file.name); // Explicitly set filename
   formData.append('storageProvider', storageProvider);
 
   const response = await fetch(`${API_BASE_URL}/api/upload-file`, {
@@ -73,7 +80,43 @@ export const uploadFileService = async (file: File, storageProvider: string): Pr
     },
     body: formData,
   });
-  return response.json();
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+    try {
+      const errorJson = JSON.parse(errorText);
+      errorMessage = errorJson.error || errorJson.message || errorMessage;
+    } catch {
+      if (errorText) {
+        errorMessage = errorText;
+      }
+    }
+    throw new Error(errorMessage);
+  }
+
+  let data: any;
+  try {
+    const text = await response.text();
+    if (!text) {
+      throw new Error('Empty response from server');
+    }
+    data = JSON.parse(text);
+  } catch (parseError) {
+    console.error('Failed to parse response:', parseError);
+    throw new Error('Failed to parse server response');
+  }
+
+  // Log for debugging
+  console.log('Upload response:', data);
+
+  return {
+    filename: data.filename || file.name,
+    bytesWritten: data.bytesWritten || '0',
+    success: data.success !== undefined ? Boolean(data.success) : (data.message ? data.message.toLowerCase().includes('uploaded') : true),
+    message: data.message || 'File uploaded successfully',
+    storageProvider: data.storageProvider || storageProvider,
+  };
 };
 
 export const downloadFileService = async (filename: string, storageProvider: string): Promise<Response> => {
@@ -83,4 +126,34 @@ export const downloadFileService = async (filename: string, storageProvider: str
     },
   });
   return response;
+};
+
+export const listFilesService = async (storageProvider: string): Promise<FileListResponse> => {
+  const response = await fetch(`${API_BASE_URL}/api/list-files?storageProvider=${encodeURIComponent(storageProvider)}`, {
+    headers: {
+      'Authorization': AUTH_TOKEN,
+    },
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to list files: ${response.statusText}`);
+  }
+  return response.json();
+};
+
+export interface DeleteFileResponse {
+  success: boolean;
+  message: string;
+}
+
+export const deleteFileService = async (filename: string, storageProvider: string): Promise<DeleteFileResponse> => {
+  const response = await fetch(`${API_BASE_URL}/api/delete-file?filename=${encodeURIComponent(filename)}&storageProvider=${encodeURIComponent(storageProvider)}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': AUTH_TOKEN,
+    },
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to delete file: ${response.statusText}`);
+  }
+  return response.json();
 };

@@ -12,6 +12,7 @@ require (
 	cloud.google.com/go/storage v1.41.0
 	google.golang.org/grpc v1.76.0
 	google.golang.org/protobuf v1.36.10
+	github.com/mattn/go-sqlite3 v1.14.22
 )
 
 require (

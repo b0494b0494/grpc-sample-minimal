@@ -10,9 +10,11 @@ service Greeter {
     rpc SayHello (HelloRequest) returns (HelloReply) {}
       rpc StreamCounter (CounterRequest) returns (stream CounterReply) {}
         rpc Chat (stream ChatMessage) returns (stream ChatMessage) {}
-        rpc UploadFile (stream FileChunk) returns (FileUploadStatus) {}
-        rpc DownloadFile (FileDownloadRequest) returns (stream FileChunk) {}
-      }
+  rpc UploadFile (stream FileChunk) returns (FileUploadStatus) {}
+  rpc DownloadFile (FileDownloadRequest) returns (stream FileChunk) {}
+  rpc ListFiles (FileListRequest) returns (FileListResponse) {}
+  rpc DeleteFile (DeleteFileRequest) returns (DeleteFileResponse) {}
+}
       
       // The request message containing the user's name.
       message HelloRequest {
@@ -60,4 +62,33 @@ service Greeter {
       message FileDownloadRequest {
         string filename = 1;
         string storage_provider = 2;
+      }
+      
+      // Message for file list request.
+      message FileListRequest {
+        string storage_provider = 1;
+      }
+      
+      // Message for file list response.
+      message FileListResponse {
+        repeated FileInfo files = 1;
+      }
+      
+      // File information.
+      message FileInfo {
+        string filename = 1;
+        string namespace = 2;
+        int64 size = 3;
+      }
+      
+      // Message for file delete request.
+      message DeleteFileRequest {
+        string filename = 1;
+        string storage_provider = 2;
+      }
+      
+      // Message for file delete response.
+      message DeleteFileResponse {
+        bool success = 1;
+        string message = 2;
       }

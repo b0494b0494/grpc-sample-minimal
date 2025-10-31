@@ -7,6 +7,8 @@ services:
       dockerfile: Dockerfile.server
     ports:
       - "${GRPC_SERVER_PORT}:${GRPC_SERVER_PORT}"
+    volumes:
+      - server-data:/app/data
     networks:
       - grpc-network
     depends_on:
@@ -30,6 +32,8 @@ services:
       - AZURE_STORAGE_ACCOUNT_NAME=devstoreaccount1
       - AZURE_STORAGE_ACCOUNT_KEY=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==
       - AZURE_STORAGE_CONTAINER_NAME=grpc-sample-container
+      # SQLite database
+      - DB_PATH=/app/data/files.db
 
   client:
     build:
@@ -86,6 +90,9 @@ services:
     command: ["azurite", "--blobHost", "0.0.0.0", "--blobPort", "10000", "--queueHost", "0.0.0.0", "--queuePort", "10001", "--tableHost", "0.0.0.0", "--tablePort", "10002"]
     networks:
       - grpc-network
+
+volumes:
+  server-data:
 
 networks:
   grpc-network:

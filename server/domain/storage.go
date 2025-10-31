@@ -12,11 +12,13 @@ import (
 type StorageService interface {
 	UploadFile(ctx context.Context, filename string, content io.Reader) (*pb.FileUploadStatus, error)
 	DownloadFile(ctx context.Context, filename string) (io.Reader, error)
+	ListFiles(ctx context.Context) ([]*pb.FileInfo, error)
+	DeleteFile(ctx context.Context, filename string) error
 }
 
-// getFileNamespace returns the namespace prefix based on file extension
+// GetFileNamespace returns the namespace prefix based on file extension
 // Returns: "documents/", "media/", or "others/"
-func getFileNamespace(filename string) string {
+func GetFileNamespace(filename string) string {
 	ext := strings.ToLower(strings.TrimPrefix(filepath.Ext(filename), "."))
 	
 	// Document file extensions
@@ -45,9 +47,9 @@ func getFileNamespace(filename string) string {
 	return "others/"
 }
 
-// buildStoragePath constructs the full storage path with namespace prefix
-func buildStoragePath(filename string) string {
-	namespace := getFileNamespace(filename)
+// BuildStoragePath constructs the full storage path with namespace prefix
+func BuildStoragePath(filename string) string {
+	namespace := GetFileNamespace(filename)
 	// Remove any existing namespace prefixes to avoid duplication
 	filename = strings.TrimPrefix(filename, "documents/")
 	filename = strings.TrimPrefix(filename, "media/")

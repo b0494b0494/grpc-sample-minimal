@@ -18,9 +18,18 @@ export const FileUpload: React.FC<FileUploadProps> = ({ storageProvider }) => {
       <Form onSubmit={handleFileUpload} className="d-flex flex-column gap-3">
         <Form.Group>
           <Form.Label>Select File:</Form.Label>
-          <Form.Control type="file" onChange={handleFileChange} />
+          <Form.Control 
+            type="file" 
+            onChange={handleFileChange}
+            required
+            accept="*/*"
+          />
         </Form.Group>
-        <Button variant="primary" type="submit">
+        <Button 
+          variant="primary" 
+          type="submit"
+          disabled={!selectedFile}
+        >
           Upload File
         </Button>
         {uploadStatus && (

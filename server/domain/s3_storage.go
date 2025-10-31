@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -79,7 +80,7 @@ func (s *s3StorageService) UploadFile(ctx context.Context, filename string, cont
 	reader := bytes.NewReader(contentBytes)
 
 	// Build storage path with namespace prefix (documents/, media/, or others/)
-	storagePath := buildStoragePath(filename)
+	storagePath := BuildStoragePath(filename)
 
 	_, err = s.s3Client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket: aws.String(s3BucketName),
@@ -100,7 +101,7 @@ func (s *s3StorageService) UploadFile(ctx context.Context, filename string, cont
 
 func (s *s3StorageService) DownloadFile(ctx context.Context, filename string) (io.Reader, error) {
 	// Build storage path with namespace prefix
-	storagePath := buildStoragePath(filename)
+	storagePath := BuildStoragePath(filename)
 
 	resp, err := s.s3Client.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(s3BucketName),
@@ -118,4 +119,66 @@ func (s *s3StorageService) DownloadFile(ctx context.Context, filename string) (i
 	}
 
 	return buf, nil
+}
+
+func (s *s3StorageService) DeleteFile(ctx context.Context, filename string) error {
+	// Build storage path with namespace prefix
+	storagePath := BuildStoragePath(filename)
+
+	_, err := s.s3Client.DeleteObject(ctx, &s3.DeleteObjectInput{
+		Bucket: aws.String(s3BucketName),
+		Key:    aws.String(storagePath),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to delete file from S3: %w", err)
+	}
+	return nil
+}
+
+func (s *s3StorageService) ListFiles(ctx context.Context) ([]*pb.FileInfo, error) {
+	var files []*pb.FileInfo
+	
+	paginator := s3.NewListObjectsV2Paginator(s.s3Client, &s3.ListObjectsV2Input{
+		Bucket: aws.String(s3BucketName),
+	})
+	
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list S3 objects: %w", err)
+		}
+		
+		for _, obj := range page.Contents {
+			// Skip directory prefixes (keys ending with "/")
+			key := aws.ToString(obj.Key)
+			if strings.HasSuffix(key, "/") {
+				continue
+			}
+			
+			// Extract namespace and filename from key (e.g., "documents/file.pdf" -> namespace: "documents/", filename: "file.pdf")
+			var namespace, filename string
+			if strings.HasPrefix(key, "documents/") {
+				namespace = "documents"
+				filename = strings.TrimPrefix(key, "documents/")
+			} else if strings.HasPrefix(key, "media/") {
+				namespace = "media"
+				filename = strings.TrimPrefix(key, "media/")
+			} else if strings.HasPrefix(key, "others/") {
+				namespace = "others"
+				filename = strings.TrimPrefix(key, "others/")
+			} else {
+				// Legacy files without namespace
+				namespace = "others"
+				filename = key
+			}
+			
+			files = append(files, &pb.FileInfo{
+				Filename:  filename,
+				Namespace: namespace,
+				Size:      aws.ToInt64(obj.Size),
+			})
+		}
+	}
+	
+	return files, nil
 }

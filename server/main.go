@@ -101,13 +101,35 @@ func (s *server) DownloadFile(req *pb.FileDownloadRequest, stream pb.Greeter_Dow
 	return s.appService.DownloadFile(req, stream)
 }
 
+func (s *server) ListFiles(ctx context.Context, req *pb.FileListRequest) (*pb.FileListResponse, error) {
+	return s.appService.ListFiles(ctx, req)
+}
+
+func (s *server) DeleteFile(ctx context.Context, req *pb.DeleteFileRequest) (*pb.DeleteFileResponse, error) {
+	return s.appService.DeleteFile(ctx, req)
+}
+
 func main() {
 	domainService := domain.NewGreeterService()
 	storageService, err := domain.NewS3StorageService()
 	if err != nil {
 		log.Fatalf("failed to create S3 storage service: %v", err)
 	}
-	appService := application.NewApplicationService(domainService, storageService)
+	
+	// Initialize file metadata repository (SQLite)
+	fileRepo, err := domain.NewFileMetadataRepository(context.Background())
+	if err != nil {
+		log.Fatalf("failed to create file metadata repository: %v", err)
+	}
+	defer func() {
+		if closer, ok := fileRepo.(interface{ Close() error }); ok {
+			if err := closer.Close(); err != nil {
+				log.Printf("Error closing file repository: %v", err)
+			}
+		}
+	}()
+	
+	appService := application.NewApplicationService(domainService, storageService, fileRepo)
 
 	port := os.Getenv("GRPC_SERVER_PORT")
 	if port == "" {
