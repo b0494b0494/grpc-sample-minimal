@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Button, Badge, Table, Spinner, Alert } from 'react-bootstrap';
+import { Button, Badge, Table, Spinner } from 'react-bootstrap';
 import { useFileDownload } from '../hooks/useFileDownload';
 import { useFileList } from '../hooks/useFileList';
 import { deleteFileService } from '../services/grpcService';
+import { AlertDialog } from './AlertDialog';
 
 interface FileDownloadProps {
   storageProvider: string;
@@ -32,6 +33,14 @@ export const FileDownload: React.FC<FileDownloadProps> = ({ storageProvider }) =
   const { downloadFilename, setDownloadFilename, downloadStatus, handleFileDownload } = useFileDownload(storageProvider);
   const [deleteStatus, setDeleteStatus] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  
+  // Dialog states
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [fileToDelete, setFileToDelete] = useState<string | null>(null);
+  const [showStatusDialog, setShowStatusDialog] = useState(false);
+  const [statusDialogTitle, setStatusDialogTitle] = useState('');
+  const [statusDialogMessage, setStatusDialogMessage] = useState('');
+  const [statusDialogVariant, setStatusDialogVariant] = useState<'success' | 'danger' | 'warning' | 'info'>('info');
 
   const handleDownload = async (filename: string) => {
     setDownloadFilename(filename);
@@ -39,30 +48,58 @@ export const FileDownload: React.FC<FileDownloadProps> = ({ storageProvider }) =
     await handleFileDownload(e);
   };
 
-  const handleDelete = async (filename: string) => {
-    if (!window.confirm(`Are you sure you want to delete "${filename}"?`)) {
-      return;
-    }
+  const handleDeleteClick = (filename: string) => {
+    setFileToDelete(filename);
+    setShowDeleteConfirm(true);
+  };
 
-    setDeleting(filename);
-    setDeleteStatus(null);
+  const handleDeleteConfirm = async () => {
+    if (!fileToDelete) return;
+
+    setDeleting(fileToDelete);
+    setShowDeleteConfirm(false);
 
     try {
-      const response = await deleteFileService(filename, storageProvider);
+      const response = await deleteFileService(fileToDelete, storageProvider);
       if (response.success) {
-        setDeleteStatus(`File "${filename}" deleted successfully`);
+        setStatusDialogTitle('Delete Success');
+        setStatusDialogMessage(`File "${fileToDelete}" deleted successfully`);
+        setStatusDialogVariant('success');
         // Refresh the file list
         await refreshFiles();
       } else {
-        setDeleteStatus(`Failed to delete file: ${response.message}`);
+        setStatusDialogTitle('Delete Failed');
+        setStatusDialogMessage(`Failed to delete file: ${response.message}`);
+        setStatusDialogVariant('danger');
       }
+      setShowStatusDialog(true);
     } catch (err) {
-      setDeleteStatus(`Error deleting file: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      setStatusDialogTitle('Delete Error');
+      setStatusDialogMessage(`Error deleting file: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      setStatusDialogVariant('danger');
+      setShowStatusDialog(true);
     } finally {
       setDeleting(null);
-      setTimeout(() => setDeleteStatus(null), 5000);
+      setFileToDelete(null);
     }
   };
+
+  // Update status dialog when download status changes
+  React.useEffect(() => {
+    if (downloadStatus) {
+      if (downloadStatus.includes('successful')) {
+        setStatusDialogTitle('Download Success');
+        setStatusDialogVariant('success');
+      } else if (downloadStatus.includes('failed') || downloadStatus.includes('Error')) {
+        setStatusDialogTitle('Download Failed');
+        setStatusDialogVariant('danger');
+      } else {
+        return; // Don't show dialog for "Downloading..." status
+      }
+      setStatusDialogMessage(downloadStatus);
+      setShowStatusDialog(true);
+    }
+  }, [downloadStatus]);
 
   return (
     <section className="bg-light rounded p-4 border shadow-sm">
@@ -85,27 +122,15 @@ export const FileDownload: React.FC<FileDownloadProps> = ({ storageProvider }) =
       )}
 
       {error && (
-        <Alert variant="danger" className="mb-3">
+        <div className="alert alert-danger mb-3" role="alert">
           {error}
-        </Alert>
-      )}
-
-      {downloadStatus && (
-        <Alert variant={downloadStatus.includes('successful') ? 'success' : 'warning'} className="mb-3">
-          {downloadStatus}
-        </Alert>
-      )}
-
-      {deleteStatus && (
-        <Alert variant={deleteStatus.includes('successful') || deleteStatus.includes('deleted successfully') ? 'success' : 'danger'} className="mb-3">
-          {deleteStatus}
-        </Alert>
+        </div>
       )}
 
       {!loading && (!files || files.length === 0) && !error && (
-        <Alert variant="info" className="mb-3">
+        <div className="alert alert-info mb-3" role="alert">
           No files found. Upload some files first.
-        </Alert>
+        </div>
       )}
 
       {!loading && files.length > 0 && (
@@ -141,7 +166,7 @@ export const FileDownload: React.FC<FileDownloadProps> = ({ storageProvider }) =
                       <Button
                         variant="danger"
                         size="sm"
-                        onClick={() => handleDelete(file.filename)}
+                        onClick={() => handleDeleteClick(file.filename)}
                         disabled={deleting === file.filename}
                       >
                         {deleting === file.filename ? 'Deleting...' : 'Delete'}
@@ -154,6 +179,31 @@ export const FileDownload: React.FC<FileDownloadProps> = ({ storageProvider }) =
           </Table>
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog
+        show={showDeleteConfirm}
+        title="Confirm Delete"
+        message={`Are you sure you want to delete "${fileToDelete}"?`}
+        variant="danger"
+        onClose={() => {
+          setShowDeleteConfirm(false);
+          setFileToDelete(null);
+        }}
+        onConfirm={handleDeleteConfirm}
+        confirmText="Delete"
+        cancelText="Cancel"
+        showCancel={true}
+      />
+
+      {/* Status Dialog */}
+      <AlertDialog
+        show={showStatusDialog}
+        title={statusDialogTitle}
+        message={statusDialogMessage}
+        variant={statusDialogVariant}
+        onClose={() => setShowStatusDialog(false)}
+      />
     </section>
   );
 };

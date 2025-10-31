@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Form, Button, Badge } from 'react-bootstrap';
 import { useFileUpload } from '../hooks';
+import { AlertDialog } from './AlertDialog';
 
 interface FileUploadProps {
   storageProvider: string;
@@ -8,6 +9,30 @@ interface FileUploadProps {
 
 export const FileUpload: React.FC<FileUploadProps> = ({ storageProvider }) => {
   const { selectedFile, uploadStatus, handleFileChange, handleFileUpload } = useFileUpload(storageProvider);
+  const [showDialog, setShowDialog] = useState(false);
+  const [dialogTitle, setDialogTitle] = useState('');
+  const [dialogMessage, setDialogMessage] = useState('');
+  const [dialogVariant, setDialogVariant] = useState<'success' | 'danger' | 'warning' | 'info'>('info');
+
+  // Update dialog when upload status changes
+  React.useEffect(() => {
+    if (uploadStatus) {
+      if (uploadStatus.includes('successful') || uploadStatus.includes('success')) {
+        setDialogTitle('Upload Success');
+        setDialogVariant('success');
+      } else if (uploadStatus.includes('failed') || uploadStatus.includes('Error')) {
+        setDialogTitle('Upload Failed');
+        setDialogVariant('danger');
+      } else if (uploadStatus.includes('Uploading')) {
+        return; // Don't show dialog for "Uploading..." status
+      } else {
+        setDialogTitle('Upload Status');
+        setDialogVariant('info');
+      }
+      setDialogMessage(uploadStatus);
+      setShowDialog(true);
+    }
+  }, [uploadStatus]);
 
   return (
     <section className="bg-light rounded p-4 border shadow-sm">
@@ -32,18 +57,15 @@ export const FileUpload: React.FC<FileUploadProps> = ({ storageProvider }) => {
         >
           Upload File
         </Button>
-        {uploadStatus && (
-          <div className={`p-3 rounded-md ${
-            uploadStatus.includes('successful') || uploadStatus.includes('success')
-              ? 'bg-green-50 text-green-700 border border-green-200'
-              : uploadStatus.includes('failed') || uploadStatus.includes('Error')
-              ? 'bg-red-50 text-red-700 border border-red-200'
-              : 'bg-blue-50 text-blue-700 border border-blue-200'
-          }`}>
-            <p className="text-sm font-medium">{uploadStatus}</p>
-          </div>
-        )}
       </Form>
+
+      <AlertDialog
+        show={showDialog}
+        title={dialogTitle}
+        message={dialogMessage}
+        variant={dialogVariant}
+        onClose={() => setShowDialog(false)}
+      />
     </section>
   );
 };
