@@ -128,6 +128,28 @@ export const downloadFileService = async (filename: string, storageProvider: str
   return response;
 };
 
+// Download file as Blob for preview
+export const downloadFileAsBlob = async (
+  filename: string,
+  storageProvider: string
+): Promise<Blob> => {
+  const response = await fetch(
+    `${API_BASE_URL}/api/download-file?filename=${encodeURIComponent(filename)}&storageProvider=${encodeURIComponent(storageProvider)}`,
+    {
+      method: 'GET',
+      headers: {
+        'Authorization': AUTH_TOKEN,
+      },
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to download file: ${response.statusText}`);
+  }
+
+  return await response.blob();
+};
+
 export const listFilesService = async (storageProvider: string): Promise<FileListResponse> => {
   const response = await fetch(`${API_BASE_URL}/api/list-files?storageProvider=${encodeURIComponent(storageProvider)}`, {
     headers: {

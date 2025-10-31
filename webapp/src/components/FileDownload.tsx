@@ -4,6 +4,8 @@ import { useFileDownload } from '../hooks/useFileDownload';
 import { useFileList } from '../hooks/useFileList';
 import { deleteFileService, processOCRService } from '../services/grpcService';
 import { AlertDialog } from './AlertDialog';
+import { FilePreviewModal } from './FilePreviewModal';
+import { canPreview } from '../utils/fileUtils';
 
 interface FileDownloadProps {
   storageProvider: string;
@@ -50,6 +52,9 @@ export const FileDownload: React.FC<FileDownloadProps> = ({ storageProvider }) =
   const [statusDialogTitle, setStatusDialogTitle] = useState('');
   const [statusDialogMessage, setStatusDialogMessage] = useState('');
   const [statusDialogVariant, setStatusDialogVariant] = useState<'success' | 'danger' | 'warning' | 'info'>('info');
+  
+  // Preview state
+  const [previewFilename, setPreviewFilename] = useState<string | null>(null);
 
   const handleDownload = async (filename: string) => {
     setDownloadFilename(filename);
@@ -199,6 +204,16 @@ export const FileDownload: React.FC<FileDownloadProps> = ({ storageProvider }) =
                     <td className="small">{formatDate(file.uploaded_at)}</td>
                     <td>
                       <div className="d-flex gap-2">
+                        {canPreview(file.filename) && (
+                          <Button
+                            variant="outline-info"
+                            size="sm"
+                            onClick={() => setPreviewFilename(file.filename)}
+                            title="Preview file"
+                          >
+                            ??? Preview
+                          </Button>
+                        )}
                         <Button
                           variant="primary"
                           size="sm"
@@ -264,6 +279,14 @@ export const FileDownload: React.FC<FileDownloadProps> = ({ storageProvider }) =
         message={statusDialogMessage}
         variant={statusDialogVariant}
         onClose={() => setShowStatusDialog(false)}
+      />
+
+      {/* File Preview Modal */}
+      <FilePreviewModal
+        show={!!previewFilename}
+        filename={previewFilename || ''}
+        storageProvider={storageProvider}
+        onHide={() => setPreviewFilename(null)}
       />
     </section>
   );
