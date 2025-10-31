@@ -5,29 +5,36 @@ export const Chat: React.FC = () => {
   const { chatUser, setChatUser, chatMessageInput, setChatMessageInput, chatMessages, handleSendChatMessage } = useChat();
 
   return (
-    <section>
-      <h2>Bidirectional Streaming RPC: Chat</h2>
-      <div style={{ marginTop: '20px', padding: '10px', border: '1px solid #eee', backgroundColor: '#f9f9f9', borderRadius: '4px', minHeight: '150px', maxHeight: '150px', overflowY: 'scroll' }}>
-        {chatMessages.map((msg, index) => (
-          <p key={index} style={{ padding: '2px 0', borderBottom: '1px dotted #eee' }}>{msg}</p>
-        ))}
+    <section className="bg-gray-50 rounded-lg p-6 border border-gray-200">
+      <h2 className="text-xl font-semibold text-gray-900 mb-4">Bidirectional Streaming RPC: Chat</h2>
+      <div className="mb-4 p-4 border border-gray-300 bg-white rounded-md min-h-[150px] max-h-[200px] overflow-y-auto">
+        {chatMessages.length === 0 ? (
+          <p className="text-gray-400 text-sm">No messages yet. Start chatting!</p>
+        ) : (
+          chatMessages.map((msg, index) => (
+            <p key={index} className="py-2 border-b border-gray-100 last:border-0 text-sm text-gray-700">{msg}</p>
+          ))
+        )}
       </div>
-      <form onSubmit={handleSendChatMessage} style={{ display: 'flex', marginTop: '10px' }}>
+      <form onSubmit={handleSendChatMessage} className="flex gap-3">
         <input
           type="text"
           value={chatUser}
           onChange={(e) => setChatUser(e.target.value)}
           placeholder="Your Name"
-          style={{ width: '100px', padding: '8px', marginRight: '10px', border: '1px solid #ccc', borderRadius: '4px' }}
+          className="w-32 px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
         />
         <input
           type="text"
           value={chatMessageInput}
           onChange={(e) => setChatMessageInput(e.target.value)}
           placeholder="Type your message..."
-          style={{ flexGrow: 1, padding: '8px', marginRight: '10px', border: '1px solid #ccc', borderRadius: '4px' }}
+          className="flex-1 px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
         />
-        <button type="submit" style={{ padding: '8px 15px', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+        <button 
+          type="submit"
+          className="px-6 py-2 bg-green-600 text-white font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
+        >
           Send
         </button>
       </form>
