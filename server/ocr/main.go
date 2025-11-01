@@ -558,6 +558,7 @@ func processOCRTask(
 	
 	// 2. OCR?????????????????
 	engineNames := getEngineNames()
+	log.Printf("Processing OCR with engines: %v for file: %s", engineNames, filename)
 	results, err := ocrService.ProcessDocument(ctx, filename, contentReader, engineNames)
 	if err != nil {
 		log.Printf("Failed to process OCR: %v", err)
@@ -573,6 +574,7 @@ func processOCRTask(
 	}
 	
 	// ???????????
+	successCount := 0
 	for engineName, result := range results {
 		if result == nil {
 			log.Printf("Warning: %s engine result is nil for file: %s", engineName, filename)
@@ -586,11 +588,14 @@ func processOCRTask(
 		if err := ocrResultRepo.SaveOCRResult(ctx, result); err != nil {
 			log.Printf("Failed to save OCR result for engine %s: %v", engineName, err)
 		} else {
-			log.Printf("OCR result saved for engine %s: %s", engineName, filename)
+			log.Printf("? OCR result saved for engine %s: %s (status: %s)", engineName, filename, result.Status)
+			if result.Status == "completed" {
+				successCount++
+			}
 		}
 	}
 	
-	log.Printf("OCR processing completed for file: %s with %d engine(s)", filename, len(results))
+	log.Printf("OCR processing completed for file: %s - %d/%d engines succeeded", filename, successCount, len(results))
 }
 
 // saveFailedResult ?????OCR???????
