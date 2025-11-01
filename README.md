@@ -6,9 +6,9 @@ This is a minimal gRPC sample application implemented in Go, demonstrating basic
 
 - `proto/`: Contains the Protocol Buffer definition (`greeter.proto`) and the generated Go code with namespace `grpc-sample-minimal/proto/`.
 - `server/`: Implements the gRPC server with a layered architecture (domain, application, infrastructure) including authentication and logging interceptors.
-  - `server/domain/`: Domain layer with storage service implementations (S3, GCS, Azure Blob Storage), queue services (Pub/Sub, SQS, Azure Queue), OCR services (Tesseract), document converters, and SQLite database repository
+  - `server/domain/`: Domain layer with storage service implementations (S3, GCS, Azure Blob Storage), queue services (Pub/Sub, SQS, Azure Queue), OCR services (Tesseract, EasyOCR), document converters, MultiOCRClient for managing multiple OCR endpoints, and SQLite database repository
   - `server/application/`: Application layer service orchestrating gRPC calls, file operations, and OCR task queuing
-- `server/ocr/`: Standalone OCR service that processes images and documents using Tesseract OCR engine. It continuously dequeues OCR tasks from provider-specific queues and processes them asynchronously.
+- `server/ocr/`: Standalone OCR service that processes images and documents using multiple OCR engines (Tesseract, EasyOCR). It continuously dequeues OCR tasks from provider-specific queues and processes them asynchronously. Each OCR engine runs in a separate container.
 - `client/`: Implements the gRPC client with authentication and logging interceptors.
 - `webapp/`: Contains a React frontend application (TypeScript with React Bootstrap, API service layer, custom hooks, and component-based structure) and a Go backend that exposes HTTP API endpoints for gRPC calls.
   - `webapp/src/components/`: React components including `AlertDialog` for modal dialogs and `OCRResults` for displaying OCR processing results
@@ -18,8 +18,10 @@ This is a minimal gRPC sample application implemented in Go, demonstrating basic
 - `Dockerfile.server`: Dockerfile for building the gRPC server image.
 - `Dockerfile.client`: Dockerfile for building the gRPC client image.
 - `Dockerfile.webapp`: Dockerfile for building the web application image (React frontend + Go backend).
-- `Dockerfile.ocr`: Dockerfile for building the OCR service image with Tesseract OCR engine.
-- `docker-compose.yml`: Defines and runs the multi-container Docker application with storage emulators (Localstack, fake-gcs, Azurite) and OCR service.
+- `Dockerfile.tesseract`: Dockerfile for building the Tesseract OCR service image.
+- `Dockerfile.easyocr`: Dockerfile for building the EasyOCR service image (Python-based, uses PyTorch).
+- `Dockerfile.ocr`: Dockerfile for building the OCR service image (legacy, for reference).
+- `docker-compose.yml`: Defines and runs the multi-container Docker application with storage emulators (Localstack, fake-gcs, Azurite) and multiple OCR services (one per engine).
 
 ## How to Run
 
@@ -42,6 +44,11 @@ This application uses Docker Compose for easy setup and execution.
     LOCALSTACK_ENDPOINT=http://localstack:4566
     GRPC_SERVER_PORT=50051
     OCR_SERVICE_PORT=50052
+    # Multiple OCR engine endpoints (for multi-engine support)
+    OCR_TESSERACT_ENDPOINT=http://ocr-tesseract-service:50052
+    OCR_EASYOCR_ENDPOINT=http://ocr-easyocr-service:50053
+    # Legacy single endpoint (for backward compatibility)
+    # OCR_SERVICE_ENDPOINT=ocr-service:50052
     DB_PATH=/app/data/files.db
     # GCS emulator
     STORAGE_EMULATOR_HOST=fake-gcs:4443
@@ -55,7 +62,7 @@ This application uses Docker Compose for easy setup and execution.
     AZURE_STORAGE_ACCOUNT_KEY=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==
     AZURE_STORAGE_CONTAINER_NAME=grpc-sample-container
     ```
-    *Note: The `AUTH_TOKEN` is used for gRPC authentication. `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `S3_BUCKET_NAME`, and `LOCALSTACK_ENDPOINT` are for Localstack S3 integration. `GRPC_SERVER_PORT` defines the port the gRPC server listens on. `OCR_SERVICE_PORT` defines the port the OCR service listens on (default: 50052). `DB_PATH` specifies the path to the SQLite database file for file metadata and OCR results storage.*
+    *Note: The `AUTH_TOKEN` is used for gRPC authentication. `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `S3_BUCKET_NAME`, and `LOCALSTACK_ENDPOINT` are for Localstack S3 integration. `GRPC_SERVER_PORT` defines the port the gRPC server listens on. `OCR_TESSERACT_ENDPOINT` and `OCR_EASYOCR_ENDPOINT` specify the gRPC endpoints for each OCR engine service (default ports: 50052 for Tesseract, 50053 for EasyOCR). `OCR_SERVICE_PORT` is used by individual OCR service containers to set their listening port. `DB_PATH` specifies the path to the SQLite database file for file metadata and OCR results storage.*
     
     **GCS and Pub/Sub Emulators:** Google Cloud Storage and Pub/Sub emulator configuration is handled automatically in `docker-compose.yml`. The `STORAGE_EMULATOR_HOST` and `PUBSUB_EMULATOR_HOST` are set to connect to the emulators running in Docker containers.
     
@@ -74,11 +81,12 @@ This application uses Docker Compose for easy setup and execution.
     docker-compose up --build -d
     ```
 
-    You should see output from the `server`, `client`, `ocr-service`, and storage emulator services in your terminal. The `webapp` will be accessible via your browser.
+    You should see output from the `server`, `client`, OCR services, and storage emulator services in your terminal. The `webapp` will be accessible via your browser.
 
     **Services:**
-    - **server:** Main gRPC server handling file operations and gRPC requests (port 50051)
-    - **ocr-service:** Standalone OCR service for processing images and documents with Tesseract (port 50052)
+    - **server:** Main gRPC server handling file operations and gRPC requests (port 50051). Uses MultiOCRClient to manage connections to multiple OCR engines.
+    - **ocr-tesseract-service:** Standalone OCR service for processing images and documents with Tesseract OCR engine (port 50052)
+    - **ocr-easyocr-service:** Standalone OCR service for processing images and documents with EasyOCR engine (Python-based, uses PyTorch) (port 50053)
     - **webapp:** Web application with React frontend and Go backend (port 8080)
 
     **Storage Emulators:**
@@ -194,6 +202,56 @@ This application uses a queue-based architecture for asynchronous OCR task proce
   - Singleton pattern ensures a single `QueueClient` instance is shared across enqueue/dequeue operations
   - Comprehensive debug logging for troubleshooting queue operations
 
+## Multi-Engine OCR Architecture
+
+This application supports multiple OCR engines running in separate containers:
+
+### Supported OCR Engines
+
+| Engine | Language | Container | Port | Implementation |
+|--------|----------|-----------|------|----------------|
+| **Tesseract** | Go (CGO) | `ocr-tesseract-service` | 50052 | C++ library wrapper |
+| **EasyOCR** | Python | `ocr-easyocr-service` | 50053 | PyTorch-based deep learning |
+
+### Architecture Benefits
+
+- **Image Size Optimization**: Each container contains only the dependencies needed for its specific engine
+- **Independent Scaling**: Scale each engine independently based on workload
+- **Resource Isolation**: Each engine has its own memory and CPU resources
+- **Easy Engine Addition**: Add new engines by creating new containers without affecting existing ones
+
+### How It Works
+
+1. **File Upload**: When a file is uploaded to `documents/` or `images/` namespace, an OCR task is enqueued
+2. **Queue Distribution**: The task is added to the storage provider's queue (SQS/Pub/Sub/Azure Queue)
+3. **Parallel Processing**: Both OCR engine containers dequeue tasks from the same queue
+4. **Result Storage**: Each engine saves its results to the SQLite database with `engine_name` to distinguish them
+5. **Result Retrieval**: The server's `MultiOCRClient` manages connections to all engine endpoints for result comparison
+
+### Environment Variables for OCR
+
+```bash
+# Multiple OCR engine endpoints (recommended)
+OCR_TESSERACT_ENDPOINT=http://ocr-tesseract-service:50052
+OCR_EASYOCR_ENDPOINT=http://ocr-easyocr-service:50053
+
+# Legacy single endpoint (backward compatibility)
+# OCR_SERVICE_ENDPOINT=ocr-service:50052
+
+# Individual service port configuration
+OCR_SERVICE_PORT=50052  # For ocr-tesseract-service
+OCR_SERVICE_PORT=50053  # For ocr-easyocr-service
+OCR_ENGINES=tesseract   # Engine registration for each container
+EASYOCR_ENABLED=true    # Enable EasyOCR (for ocr-easyocr-service)
+```
+
+### Docker Images
+
+- **ocr-tesseract-service**: ~200MB (Alpine-based, Tesseract dependencies only)
+- **ocr-easyocr-service**: ~12GB (Debian-based, includes PyTorch and EasyOCR)
+
+For more details, see [doc/MULTI_ENGINE_OCR_PROGRESS.md](doc/MULTI_ENGINE_OCR_PROGRESS.md).
+
 ## Features
 
 - **gRPC Communication**: Unary, server streaming, client streaming, and bidirectional streaming
@@ -206,14 +264,18 @@ This application uses a queue-based architecture for asynchronous OCR task proce
   - Delete files from storage
   - Automatic file categorization by type (documents, media, others)
 - **OCR (Optical Character Recognition)**:
-  - Process images and documents using Tesseract OCR engine
+  - **Multi-Engine Support**: Process images and documents using multiple OCR engines (Tesseract and EasyOCR)
+  - **Engine-Per-Container Architecture**: Each OCR engine runs in a separate Docker container for optimal resource usage and scalability
+  - **Tesseract OCR**: Fast, C++-based OCR engine with Japanese and English language support
+  - **EasyOCR**: Python-based OCR engine using deep learning (PyTorch) for improved accuracy
   - Extract text from uploaded image files
   - View OCR processing results with confidence scores
-  - List and manage OCR results for multiple files
-  - Compare OCR results from different engines (when multiple engines are available)
-  - OCR service runs as a separate microservice for scalability
+  - List and manage OCR results for multiple files and engines
+  - Compare OCR results from different engines
+  - OCR services run as separate microservices for scalability
   - Automatic OCR task queuing for `documents/` and `images/` files
   - Queue-based asynchronous processing using provider-specific queues (SQS for S3, Pub/Sub for GCS, Azure Queue for Azure)
+  - **MultiOCRClient**: Manages connections to multiple OCR engine endpoints simultaneously
 - **SQLite Database**: File metadata management for tracking uploaded files and OCR results
 - **Storage Emulators**: Local development support for AWS S3, GCS, and Azure Blob Storage
 - **Web UI**: 
