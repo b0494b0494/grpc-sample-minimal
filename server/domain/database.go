@@ -140,6 +140,22 @@ func (r *sqliteFileMetadataRepository) initSchema(ctx context.Context) error {
 
 	CREATE INDEX IF NOT EXISTS idx_ocr_pages_result_id ON ocr_pages(ocr_result_id);
 	
+	-- ????????????????
+	CREATE TABLE IF NOT EXISTS queue_tasks (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		filename TEXT NOT NULL,
+		storage_provider TEXT NOT NULL,
+		status TEXT NOT NULL,  -- 'enqueued', 'dequeued', 'processing', 'completed', 'failed'
+		enqueued_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		dequeued_at DATETIME,
+		processed_at DATETIME,
+		error_message TEXT
+	);
+	
+	CREATE INDEX IF NOT EXISTS idx_queue_filename_provider ON queue_tasks(filename, storage_provider);
+	CREATE INDEX IF NOT EXISTS idx_queue_status ON queue_tasks(status);
+	CREATE INDEX IF NOT EXISTS idx_queue_enqueued_at ON queue_tasks(enqueued_at);
+	
 	-- ??OCR????????????????
 	CREATE VIEW IF NOT EXISTS ocr_comparison AS
 	SELECT 

@@ -405,18 +405,18 @@ func startOCRWorker(
 
 	log.Printf("OCR worker started for storage provider: %s (via QueueManager)", storageProvider)
 
-	log.Printf("Debug: GCS worker loop started, will call DequeueOCRTask repeatedly")
+	log.Printf("Debug: %s worker loop started, will call DequeueOCRTask repeatedly", storageProvider)
 	loopCount := 0
 	for {
 		loopCount++
 		if loopCount%10 == 0 {
-			log.Printf("Debug: GCS worker loop iteration %d, calling DequeueOCRTask", loopCount)
+			log.Printf("Debug: %s worker loop iteration %d, calling DequeueOCRTask", storageProvider, loopCount)
 		}
 		// ??????????????????
 		task, err := queueManager.DequeueOCRTask(ctx, storageProvider)
 		if err != nil {
 			if err == context.Canceled || err == context.DeadlineExceeded {
-				log.Printf("Debug: GCS worker context canceled or deadline exceeded")
+				log.Printf("Debug: %s worker context canceled or deadline exceeded", storageProvider)
 				break
 			}
 			log.Printf("Error dequeuing OCR task via QueueManager (provider: %s): %v", storageProvider, err)
@@ -432,7 +432,7 @@ func startOCRWorker(
 		if task == nil {
 			// ???????????????????
 			if loopCount%20 == 0 {
-				log.Printf("Debug: GCS worker received nil task (no messages available), will retry")
+				log.Printf("Debug: %s worker received nil task (no messages available), will retry", storageProvider)
 			}
 			select {
 			case <-ctx.Done():
@@ -553,6 +553,10 @@ func processOCRTask(
 	if err := ocrResultRepo.SaveOCRResult(ctx, result); err != nil {
 		// ??????????????????????????????????????????
 		log.Printf("Failed to save OCR result to database: %v", err)
+		// ???????????????
+		if store, err := domain.GetOrCreateQueueTaskStore(ctx); err == nil {
+			store.LogFailed(ctx, filename, storageProvider, err)
+		}
 		// ?????????????????????????
 		failedResult := &domain.OCRResult{
 			Filename:        filename,

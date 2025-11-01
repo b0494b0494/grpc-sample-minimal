@@ -6,3 +6,4 @@ export * from './FileDownload';
 export * from './AlertDialog';
 export * from './OCRResults';
 export * from './FilePreviewModal';
+export * from './UploadQueueView';

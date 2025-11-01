@@ -1,7 +1,8 @@
 import { GreetingResponse, ChatMessage, FileUploadStatus, FileListResponse, OCRRequest, OCRResponse, OCRResultResponse, OCRListResponse, OCRComparisonResponse } from '../types';
 
-const API_BASE_URL = ''; // Proxy to Go backend
-const AUTH_TOKEN = 'my-secret-token';
+// Use environment variable if available, otherwise use empty string for proxy
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || '';
+const AUTH_TOKEN = process.env.REACT_APP_AUTH_TOKEN || 'my-secret-token';
 
 const headers = {
   'Content-Type': 'application/json',

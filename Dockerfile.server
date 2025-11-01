@@ -9,9 +9,12 @@ RUN go get github.com/aws/aws-sdk-go-v2/config
 RUN go get github.com/aws/aws-sdk-go-v2/credentials
 RUN go get github.com/aws/aws-sdk-go-v2/service/s3
 RUN go get github.com/aws/aws-sdk-go-v2/service/s3/types
+RUN go get github.com/aws/aws-sdk-go-v2/service/sqs
 RUN go get cloud.google.com/go/storage
+RUN go get cloud.google.com/go/pubsub
 RUN go get github.com/Azure/azure-sdk-for-go/sdk/azcore
 RUN go get github.com/Azure/azure-sdk-for-go/sdk/storage/azblob
+RUN go get github.com/Azure/azure-sdk-for-go/sdk/storage/azqueue
 RUN go get github.com/mattn/go-sqlite3
 
 # Install CGO dependencies for gosseract (even though server doesn't run OCR, it builds domain package)

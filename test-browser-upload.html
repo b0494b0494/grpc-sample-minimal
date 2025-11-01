@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Upload Test</title>
+</head>
+<body>
+  <h1>Simple Upload Test</h1>
+  <input type="file" id="fileInput" multiple>
+  <button onclick="testUpload()">Test Upload</button>
+  <div id="result"></div>
+
+  <script>
+    async function testUpload() {
+      const fileInput = document.getElementById('fileInput');
+      const resultDiv = document.getElementById('result');
+      
+      if (!fileInput.files.length) {
+        resultDiv.textContent = '?????????????';
+        return;
+      }
+
+      const file = fileInput.files[0];
+      const apiBaseUrl = window.location.origin;
+      
+      console.log('Test: apiBaseUrl =', apiBaseUrl);
+      console.log('Test: file =', file.name, file.size);
+      
+      const formData = new FormData();
+      formData.append('uploadFile', file);
+      formData.append('storageProvider', 's3');
+
+      try {
+        const uploadUrl = apiBaseUrl + '/api/upload-file';
+        console.log('Test: uploadUrl =', uploadUrl);
+        
+        const response = await fetch(uploadUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': 'my-secret-token',
+          },
+          body: formData,
+        });
+
+        const data = await response.json();
+        console.log('Test: Response =', data);
+        resultDiv.textContent = JSON.stringify(data, null, 2);
+      } catch (error) {
+        console.error('Test: Error =', error);
+        resultDiv.textContent = 'Error: ' + error.message;
+      }
+    }
+  </script>
+</body>
+</html>

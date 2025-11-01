@@ -1,14 +1,24 @@
 import React, { useState, useRef } from 'react';
-import { Form, Button, Badge } from 'react-bootstrap';
+import { Form, Button, Badge, ListGroup } from 'react-bootstrap';
 import { useFileUpload } from '../hooks';
 import { AlertDialog } from './AlertDialog';
+import { UploadQueueView } from './UploadQueueView';
 
 interface FileUploadProps {
   storageProvider: string;
 }
 
 export const FileUpload: React.FC<FileUploadProps> = ({ storageProvider }) => {
-  const { selectedFile, uploadStatus, handleFileChange, handleFileUpload } = useFileUpload(storageProvider);
+  const { 
+    selectedFiles, 
+    uploadStatus, 
+    uploadTasks,
+    isUploading,
+    handleFileChange, 
+    handleFileUpload,
+    clearSelectedFiles,
+    removeFile,
+  } = useFileUpload(storageProvider);
   const [showDialog, setShowDialog] = useState(false);
   const [dialogTitle, setDialogTitle] = useState('');
   const [dialogMessage, setDialogMessage] = useState('');
@@ -61,13 +71,13 @@ export const FileUpload: React.FC<FileUploadProps> = ({ storageProvider }) => {
 
     const files = e.dataTransfer.files;
     if (files && files.length > 0) {
-      const file = files[0];
+      const filesArray = Array.from(files);
       // Create a synthetic event for handleFileChange
       const syntheticEvent = {
         target: {
-          files: [file],
+          files: filesArray,
         },
-      } as React.ChangeEvent<HTMLInputElement>;
+      } as unknown as React.ChangeEvent<HTMLInputElement>;
       handleFileChange(syntheticEvent);
     }
   };
@@ -91,6 +101,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ storageProvider }) => {
             onChange={handleFileChange}
             className="d-none"
             accept="*/*"
+            multiple
           />
           <div
             onClick={handleDropAreaClick}
@@ -110,13 +121,13 @@ export const FileUpload: React.FC<FileUploadProps> = ({ storageProvider }) => {
               borderWidth: '2px',
             }}
           >
-            {selectedFile ? (
+            {selectedFiles.length > 0 ? (
               <div>
                 <p className="mb-2">
-                  <strong>Selected:</strong> {selectedFile.name}
+                  <strong>{selectedFiles.length} file(s) selected</strong>
                 </p>
                 <p className="text-muted small mb-0">
-                  Click to change file or drag and drop a new file here
+                  Click to add more files or drag and drop files here
                 </p>
               </div>
             ) : isDragging ? (
@@ -137,14 +148,56 @@ export const FileUpload: React.FC<FileUploadProps> = ({ storageProvider }) => {
             )}
           </div>
         </Form.Group>
-        <Button 
-          variant="primary" 
-          type="submit"
-          disabled={!selectedFile}
-        >
-          Upload File
-        </Button>
+        <div className="d-flex gap-2">
+          <Button 
+            variant="primary" 
+            type="submit"
+            disabled={selectedFiles.length === 0 || isUploading}
+          >
+            {isUploading ? 'Uploading...' : `Upload ${selectedFiles.length} File(s)`}
+          </Button>
+          {selectedFiles.length > 0 && !isUploading && (
+            <Button 
+              variant="outline-secondary" 
+              type="button"
+              onClick={clearSelectedFiles}
+            >
+              Clear
+            </Button>
+          )}
+        </div>
       </Form>
+
+      {/* Selected Files List */}
+      {selectedFiles.length > 0 && !isUploading && (
+        <div className="mt-3">
+          <h6 className="mb-2">Selected Files:</h6>
+          <ListGroup>
+            {selectedFiles.map((file, index) => (
+              <ListGroup.Item key={index} className="d-flex justify-content-between align-items-center">
+                <div className="flex-grow-1">
+                  <div className="fw-semibold">{file.name}</div>
+                  <small className="text-muted">
+                    {(file.size / 1024 / 1024).toFixed(2)} MB
+                  </small>
+                </div>
+                <Button
+                  variant="outline-danger"
+                  size="sm"
+                  onClick={() => removeFile(index)}
+                >
+                  Remove
+                </Button>
+              </ListGroup.Item>
+            ))}
+          </ListGroup>
+        </div>
+      )}
+
+      {/* Upload Queue View */}
+      {uploadTasks.length > 0 && (
+        <UploadQueueView showCompleted={false} maxHeight="400px" />
+      )}
 
       <AlertDialog
         show={showDialog}

@@ -15,6 +15,7 @@ services:
       - localstack
       - fake-gcs
       - azurite
+      - pubsub-emulator
     environment:
       - AUTH_TOKEN=${AUTH_TOKEN}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
@@ -27,6 +28,8 @@ services:
       - STORAGE_EMULATOR_HOST=fake-gcs:4443
       - GOOGLE_CLOUD_PROJECT=dev-project
       - GCS_BUCKET_NAME=grpc-sample-bucket
+      # Pub/Sub emulator
+      - PUBSUB_EMULATOR_HOST=pubsub-emulator:8085
       # Azure Storage emulator
       - AZURE_STORAGE_ENDPOINT=http://azurite:10000
       - AZURE_STORAGE_ACCOUNT_NAME=devstoreaccount1
@@ -51,6 +54,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.webapp
+      args:
+        REACT_APP_API_BASE_URL: ""  # Empty means use proxy (window.location.origin)
+        REACT_APP_AUTH_TOKEN: ${AUTH_TOKEN:-my-secret-token}
     ports:
       - "8080:8080"
     depends_on:
@@ -75,6 +81,7 @@ services:
       - localstack
       - fake-gcs
       - azurite
+      - pubsub-emulator
     networks:
       - grpc-network
     environment:
@@ -90,6 +97,8 @@ services:
       - STORAGE_EMULATOR_HOST=fake-gcs:4443
       - GOOGLE_CLOUD_PROJECT=dev-project
       - GCS_BUCKET_NAME=grpc-sample-bucket
+      # Pub/Sub emulator
+      - PUBSUB_EMULATOR_HOST=pubsub-emulator:8085
       - AZURE_STORAGE_ENDPOINT=http://azurite:10000
       - AZURE_STORAGE_ACCOUNT_NAME=devstoreaccount1
       - AZURE_STORAGE_ACCOUNT_KEY=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==
@@ -126,16 +135,16 @@ services:
     networks:
       - grpc-network
 
-  # GCP Pub/Sub???????Phase 2?????: gcpPubSubService?
-  # pubsub-emulator:
-  #   image: gcr.io/google.com/cloudsdktool/cloud-sdk:emulators
-  #   command: gcloud beta emulators pubsub start --host-port=0.0.0.0:8085
-  #   ports:
-  #     - "8085:8085"
-  #   networks:
-  #     - grpc-network
-  #   environment:
-  #     - PUBSUB_PROJECT_ID=dev-project
+  # GCP Pub/Sub??????: GCS???????????
+  pubsub-emulator:
+    image: gcr.io/google.com/cloudsdktool/cloud-sdk:emulators
+    command: gcloud beta emulators pubsub start --host-port=0.0.0.0:8085
+    ports:
+      - "8085:8085"
+    networks:
+      - grpc-network
+    environment:
+      - PUBSUB_PROJECT_ID=dev-project
 
 volumes:
   server-data:

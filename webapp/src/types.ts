@@ -17,6 +17,26 @@ export interface FileUploadStatus {
   storageProvider?: string;
 }
 
+// Upload Queue related types
+export interface UploadTask {
+  id: string;
+  file: File;
+  storageProvider: string;
+  status: 'pending' | 'uploading' | 'success' | 'error' | 'cancelled';
+  progress: number; // 0-100
+  error?: string;
+  result?: FileUploadStatus;
+  createdAt: number;
+  startedAt?: number;
+  completedAt?: number;
+}
+
+export interface UploadQueueState {
+  tasks: UploadTask[];
+  activeTaskId: string | null;
+  maxConcurrent: number;
+}
+
 export interface FileDownloadRequest {
   filename: string;
   storageProvider?: string;

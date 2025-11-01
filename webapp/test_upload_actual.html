@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Service Worker Upload Test</title>
+  <style>
+    body { font-family: monospace; padding: 20px; }
+    #log { background: #000; color: #0f0; padding: 10px; height: 400px; overflow-y: auto; }
+    .error { color: #f00; }
+    .success { color: #0f0; }
+    .info { color: #0ff; }
+  </style>
+</head>
+<body>
+  <h1>Service Worker Upload ???</h1>
+  <input type="file" id="fileInput" multiple>
+  <button onclick="testUpload()">Upload Test</button>
+  <button onclick="clearLog()">Clear Log</button>
+  <div id="log"></div>
+
+  <script>
+    const log = (msg, type = 'info') => {
+      const div = document.getElementById('log');
+      const p = document.createElement('p');
+      p.className = type;
+      p.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+      div.appendChild(p);
+      div.scrollTop = div.scrollHeight;
+      console.log(msg);
+    };
+
+    const clearLog = () => {
+      document.getElementById('log').innerHTML = '';
+    };
+
+    // Capture all console logs/errors
+    const originalLog = console.log;
+    const originalError = console.error;
+    const originalWarn = console.warn;
+
+    console.log = (...args) => {
+      originalLog.apply(console, args);
+      log(args.join(' '), 'info');
+    };
+
+    console.error = (...args) => {
+      originalError.apply(console, args);
+      log('ERROR: ' + args.join(' '), 'error');
+    };
+
+    console.warn = (...args) => {
+      originalWarn.apply(console, args);
+      log('WARN: ' + args.join(' '), 'error');
+    };
+
+    window.addEventListener('error', (e) => {
+      log(`Global Error: ${e.message} at ${e.filename}:${e.lineno}`, 'error');
+    });
+
+    async function testUpload() {
+      const fileInput = document.getElementById('fileInput');
+      const files = fileInput.files;
+      
+      if (files.length === 0) {
+        log('?????????????', 'error');
+        return;
+      }
+
+      log(`?????: ${files.length}??????`, 'info');
+
+      try {
+        // Worker Manager ????????????????????????????????
+        // ??????fetch????
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          log(`????????: ${file.name} (${file.size} bytes)`, 'info');
+
+          const formData = new FormData();
+          formData.append('uploadFile', file);
+          formData.append('storageProvider', 's3');
+
+          const startTime = Date.now();
+          const response = await fetch('http://localhost:8080/api/upload-file', {
+            method: 'POST',
+            headers: {
+              'Authorization': 'my-secret-token',
+            },
+            body: formData,
+          });
+
+          const duration = Date.now() - startTime;
+          
+          if (response.ok) {
+            const data = await response.json();
+            log(`? ??: ${file.name} (${duration}ms)`, 'success');
+            log(`  ?????: ${JSON.stringify(data)}`, 'info');
+          } else {
+            const errorText = await response.text();
+            log(`? ??: ${file.name} - HTTP ${response.status}`, 'error');
+            log(`  ???: ${errorText}`, 'error');
+          }
+        }
+      } catch (error) {
+        log(`???: ${error.message}`, 'error');
+        log(`????: ${error.stack}`, 'error');
+      }
+    }
+
+    log('????????????', 'success');
+  </script>
+</body>
+</html>

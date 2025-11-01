@@ -2,6 +2,14 @@ FROM node:18 as builder
 
 WORKDIR /app/webapp
 
+# Accept build arguments for environment variables
+ARG REACT_APP_API_BASE_URL
+ARG REACT_APP_AUTH_TOKEN
+
+# Set environment variables for build
+ENV REACT_APP_API_BASE_URL=${REACT_APP_API_BASE_URL}
+ENV REACT_APP_AUTH_TOKEN=${REACT_APP_AUTH_TOKEN}
+
 COPY webapp/package.json webapp/package-lock.json webapp/tsconfig.json ./
 RUN npm install
 
@@ -15,7 +23,6 @@ FROM golang:1.25.3
 WORKDIR /app
 
 COPY go.mod go.sum ./
-RUN go mod download
 
 # Install protoc and plugins
 RUN apt-get update && apt-get install -y protobuf-compiler && rm -rf /var/lib/apt/lists/*
@@ -24,10 +31,10 @@ RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 
 COPY . .
 
-# Generate proto files (after copying all files, regenerate to ensure latest proto definitions)
-RUN protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative proto/greeter.proto
-
-RUN go build -o /app/webapp/webapp ./webapp
+# Update dependencies and generate proto files
+RUN go mod tidy && \
+    protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative proto/greeter.proto && \
+    go build -o /app/webapp/webapp ./webapp
 
 COPY --from=builder /app/webapp/build /app/webapp/build
 
