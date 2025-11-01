@@ -1,0 +1,66 @@
+FROM golang:1.25-alpine AS builder
+WORKDIR /app
+
+# Python?EasyOCR??????????????????
+RUN apk add --no-cache \
+    build-base \
+    git \
+    python3 \
+    py3-pip \
+    poppler-utils
+
+# Go????????????
+COPY go.mod go.sum ./
+RUN go mod download
+RUN go get github.com/aws/aws-sdk-go-v2/service/sqs
+RUN go get github.com/Azure/azure-sdk-for-go/sdk/storage/azqueue
+RUN go get cloud.google.com/go/pubsub
+RUN go mod tidy
+
+# Protocol Buffers??????????????????
+RUN apk add --no-cache protobuf-dev protoc && \
+    go install google.golang.org/protobuf/cmd/protoc-gen-go@latest && \
+    go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+
+# proto???????????????
+COPY proto/ ./proto/
+RUN if [ -f proto/greeter.proto ]; then \
+    export PATH=$PATH:$(go env GOPATH)/bin && \
+    protoc --go_out=. --go-grpc_out=. proto/greeter.proto && \
+    find . -name '*.pb.go' -type f && \
+    mkdir -p proto && \
+    (mv grpc-sample-minimal/proto/*.pb.go proto/ 2>/dev/null || true) && \
+    ls -la proto/*.pb.go; \
+    fi
+
+# OCR????????????
+COPY server/domain/ ./server/domain/
+COPY server/ocr/ ./server/ocr/
+
+# ???domain?????????????
+RUN go mod tidy
+
+# ????EasyOCR???????
+RUN CGO_ENABLED=0 GOOS=linux go build -o ocr-easyocr-service ./server/ocr/main.go
+
+FROM alpine:latest
+RUN apk add --no-cache \
+    python3 \
+    py3-pip \
+    poppler-utils \
+    ca-certificates
+
+WORKDIR /app
+
+# ????????????
+RUN mkdir -p /app/data
+
+# EasyOCR???????
+RUN pip3 install --no-cache-dir easyocr
+
+COPY --from=builder /app/ocr-easyocr-service /app/ocr-easyocr-service
+COPY --from=builder /app/proto/*.go /app/proto/
+COPY server/ocr/easyocr_script.py /app/easyocr_script.py
+RUN chmod +x /app/easyocr_script.py
+
+CMD ["/app/ocr-easyocr-service"]

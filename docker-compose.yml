@@ -61,17 +61,19 @@ services:
       - "8080:8080"
     depends_on:
       - server
-      - ocr-service
+      - ocr-tesseract-service
+      - ocr-easyocr-service
     networks:
       - grpc-network
     environment:
       - AUTH_TOKEN=${AUTH_TOKEN}
-      - OCR_SERVICE_ENDPOINT=http://ocr-service:50052
+      - OCR_TESSERACT_ENDPOINT=http://ocr-tesseract-service:50052
+      - OCR_EASYOCR_ENDPOINT=http://ocr-easyocr-service:50053
 
-  ocr-service:
+  ocr-tesseract-service:
     build:
       context: .
-      dockerfile: Dockerfile.ocr
+      dockerfile: Dockerfile.tesseract
     ports:
       - "50052:50052"
     volumes:
@@ -87,8 +89,45 @@ services:
     environment:
       - AUTH_TOKEN=${AUTH_TOKEN}
       - OCR_SERVICE_PORT=50052
-      - OCR_ENGINES=${OCR_ENGINES:-tesseract}
-      - EASYOCR_ENABLED=${EASYOCR_ENABLED:-false}
+      - OCR_ENGINES=tesseract
+      - DB_PATH=/app/data/files.db
+      # Storage provider settings
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME}
+      - LOCALSTACK_ENDPOINT=http://localstack:4566
+      - STORAGE_EMULATOR_HOST=fake-gcs:4443
+      - GOOGLE_CLOUD_PROJECT=dev-project
+      - GCS_BUCKET_NAME=grpc-sample-bucket
+      # Pub/Sub emulator
+      - PUBSUB_EMULATOR_HOST=pubsub-emulator:8085
+      - AZURE_STORAGE_ENDPOINT=http://azurite:10000
+      - AZURE_STORAGE_ACCOUNT_NAME=devstoreaccount1
+      - AZURE_STORAGE_ACCOUNT_KEY=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==
+      - AZURE_STORAGE_CONTAINER_NAME=grpc-sample-container
+
+  ocr-easyocr-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.easyocr
+    ports:
+      - "50053:50053"
+    volumes:
+      - server-data:/app/data
+    depends_on:
+      - server
+      - localstack
+      - fake-gcs
+      - azurite
+      - pubsub-emulator
+    networks:
+      - grpc-network
+    environment:
+      - AUTH_TOKEN=${AUTH_TOKEN}
+      - OCR_SERVICE_PORT=50053
+      - OCR_ENGINES=easyocr
+      - EASYOCR_ENABLED=true
       - DB_PATH=/app/data/files.db
       # Storage provider settings
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}

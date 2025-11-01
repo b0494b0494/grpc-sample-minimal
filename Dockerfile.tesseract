@@ -1,0 +1,65 @@
+FROM golang:1.25-alpine AS builder
+WORKDIR /app
+
+# Tesseract OCR?leptonica????????????
+RUN apk add --no-cache \
+    tesseract-ocr \
+    tesseract-ocr-dev \
+    tesseract-ocr-data-jpn \
+    tesseract-ocr-data-eng \
+    leptonica-dev \
+    build-base \
+    git \
+    poppler-utils
+
+# Go????????????
+COPY go.mod go.sum ./
+RUN go mod download
+RUN go get github.com/aws/aws-sdk-go-v2/service/sqs
+RUN go get github.com/Azure/azure-sdk-for-go/sdk/storage/azqueue
+RUN go get cloud.google.com/go/pubsub
+RUN go mod tidy
+
+# Protocol Buffers??????????????????
+RUN apk add --no-cache protobuf-dev protoc && \
+    go install google.golang.org/protobuf/cmd/protoc-gen-go@latest && \
+    go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+
+# proto???????????????
+COPY proto/ ./proto/
+RUN if [ -f proto/greeter.proto ]; then \
+    export PATH=$PATH:$(go env GOPATH)/bin && \
+    protoc --go_out=. --go-grpc_out=. proto/greeter.proto && \
+    find . -name '*.pb.go' -type f && \
+    mkdir -p proto && \
+    (mv grpc-sample-minimal/proto/*.pb.go proto/ 2>/dev/null || true) && \
+    ls -la proto/*.pb.go; \
+    fi
+
+# OCR????????????
+COPY server/domain/ ./server/domain/
+COPY server/ocr/ ./server/ocr/
+
+# ???domain?????????????
+RUN go mod tidy
+
+# ????Tesseract???????
+RUN CGO_ENABLED=1 GOOS=linux go build -o ocr-tesseract-service ./server/ocr/main.go
+
+FROM alpine:latest
+RUN apk add --no-cache \
+    tesseract-ocr \
+    tesseract-ocr-data-jpn \
+    tesseract-ocr-data-eng \
+    poppler-utils \
+    ca-certificates
+
+WORKDIR /app
+
+# ????????????
+RUN mkdir -p /app/data
+
+COPY --from=builder /app/ocr-tesseract-service /app/ocr-tesseract-service
+COPY --from=builder /app/proto/*.go /app/proto/
+
+CMD ["/app/ocr-tesseract-service"]
