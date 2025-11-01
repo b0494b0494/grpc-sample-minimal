@@ -146,16 +146,48 @@ func main() {
 	}()
 	
 	// OCR?????????????????gRPC????????
-	ocrEndpoint := os.Getenv("OCR_SERVICE_ENDPOINT")
-	if ocrEndpoint == "" {
-		ocrEndpoint = "ocr-service:50052" // ?????
-	}
+	// ??OCR?????????: MultiOCRClient???
+	var ocrClient domain.OCRClient
+	var multiOCRClient *domain.MultiOCRClient
 	
-	ocrClient, err := domain.NewOCRClient(ocrEndpoint, authToken)
-	if err != nil {
-		log.Printf("Warning: Failed to create OCR client: %v (OCR features will be unavailable)", err)
-		// OCR??????????????nil?????????????????
-		// ????????nil???????
+	// ????????????????????MultiOCRClient???
+	tesseractEndpoint := os.Getenv("OCR_TESSERACT_ENDPOINT")
+	easyOCREndpoint := os.Getenv("OCR_EASYOCR_ENDPOINT")
+	
+	if tesseractEndpoint != "" || easyOCREndpoint != "" {
+		// ????????
+		multi, err := domain.NewMultiOCRClient(authToken)
+		if err != nil {
+			log.Printf("Warning: Failed to create MultiOCR client: %v (OCR features will be unavailable)", err)
+		} else {
+			multiOCRClient = multi
+			log.Printf("MultiOCR client initialized with engines: %v", multi.GetAvailableEngines())
+			// ???????????????????ocrClient?????
+			engines := multi.GetAvailableEngines()
+			if len(engines) > 0 {
+				ocrClient = multi.GetClient(engines[0])
+			}
+		}
+		defer func() {
+			if multiOCRClient != nil {
+				if err := multiOCRClient.Close(); err != nil {
+					log.Printf("Error closing MultiOCR client: %v", err)
+				}
+			}
+		}()
+	} else {
+		// ????????????????
+		ocrEndpoint := os.Getenv("OCR_SERVICE_ENDPOINT")
+		if ocrEndpoint == "" {
+			ocrEndpoint = "ocr-service:50052" // ?????
+		}
+		
+		client, err := domain.NewOCRClient(ocrEndpoint, authToken)
+		if err != nil {
+			log.Printf("Warning: Failed to create OCR client: %v (OCR features will be unavailable)", err)
+		} else {
+			ocrClient = client
+		}
 	}
 	
 	// OCR??????????????DB????
