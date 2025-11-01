@@ -283,7 +283,7 @@ func (s *ApplicationService) ProcessOCR(ctx context.Context, req *proto.OCRReque
 
 // GetOCRResult ?OCR???????
 func (s *ApplicationService) GetOCRResult(ctx context.Context, req *proto.OCRResultRequest) (*proto.OCRResultResponse, error) {
-	if s.ocrClient == nil {
+	if s.ocrResultRepo == nil {
 		return nil, fmt.Errorf("OCR client is not available")
 	}
 	
@@ -292,9 +292,10 @@ func (s *ApplicationService) GetOCRResult(ctx context.Context, req *proto.OCRRes
 		engineName = "tesseract" // ?????
 	}
 	
-	result, err := s.ocrClient.GetOCRResult(ctx, req.Filename, req.StorageProvider, engineName)
+	result, err := s.ocrResultRepo.GetOCRResult(ctx, req.Filename, req.StorageProvider, engineName)
+	// データベースから直接取得（OCR処理が完了していれば保存されている）
 	if err != nil {
-		return nil, fmt.Errorf("failed to get OCR result: %w", err)
+		return nil, fmt.Errorf("failed to get OCR result from repository: %w", err)
 	}
 	
 	if result == nil {
