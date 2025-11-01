@@ -155,13 +155,13 @@ func (s *ApplicationService) UploadFile(stream proto.Greeter_UploadFileServer) e
 	// namespace?"documents/"???"images/"????"/"????
 	log.Printf("Debug: Checking OCR queue condition - namespace=%s, ocrClient=%v", namespace, s.ocrClient != nil)
 	if (namespace == "documents/" || namespace == "images/") && s.ocrClient != nil {
-		// ????OCR??????????
+		// ????????OCR??????????????????????????
 		queueManager := domain.GetQueueManager()
 		go func() {
 			if err := queueManager.EnqueueOCRTask(context.Background(), filename, provider); err != nil {
 				log.Printf("Warning: Failed to enqueue OCR task via QueueManager: %v", err)
 			} else {
-				log.Printf("OCR task queued via QueueManager for file: %s (provider: %s)", filename, provider)
+				log.Printf("OCR task queued via QueueManager for file: %s (provider: %s) - will process with multiple engines", filename, provider)
 			}
 		}()
 	} else {
@@ -293,7 +293,7 @@ func (s *ApplicationService) GetOCRResult(ctx context.Context, req *proto.OCRRes
 	}
 	
 	result, err := s.ocrResultRepo.GetOCRResult(ctx, req.Filename, req.StorageProvider, engineName)
-	// データベースから直接取得（OCR処理が完了していれば保存されている）
+	// ?????????????OCR??????????????????
 	if err != nil {
 		return nil, fmt.Errorf("failed to get OCR result from repository: %w", err)
 	}
