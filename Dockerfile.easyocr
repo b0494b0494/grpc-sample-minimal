@@ -49,9 +49,12 @@ RUN CGO_ENABLED=1 GOOS=linux go build -o ocr-easyocr-service ./server/ocr/main.g
 FROM python:3.11-slim
 
 # ???????????????
+# Note: Tesseract?????????domain??????Tesseract?????????????
 RUN apt-get update && apt-get install -y \
     poppler-utils \
     ca-certificates \
+    libtesseract5 \
+    libleptonica6 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -66,5 +69,8 @@ COPY --from=builder /app/ocr-easyocr-service /app/ocr-easyocr-service
 COPY --from=builder /app/proto/*.go /app/proto/
 COPY server/ocr/easyocr_script.py /app/easyocr_script.py
 RUN chmod +x /app/easyocr_script.py
+
+# LD_LIBRARY_PATH???????????????
+ENV LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:${LD_LIBRARY_PATH}
 
 CMD ["/app/ocr-easyocr-service"]
