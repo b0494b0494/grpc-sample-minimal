@@ -87,8 +87,9 @@ services:
     environment:
       - AUTH_TOKEN=${AUTH_TOKEN}
       - OCR_SERVICE_PORT=50052
+      - OCR_ENGINES=${OCR_ENGINES:-tesseract}
       - DB_PATH=/app/data/files.db
-      # ?????????????????????
+      # Storage provider settings
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - AWS_REGION=${AWS_REGION}
