@@ -2,11 +2,14 @@ package domain
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"image"
+	"image/png"
 	"io"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
