@@ -151,22 +151,26 @@ func (s *ApplicationService) UploadFile(stream proto.Greeter_UploadFileServer) e
 		log.Printf("Successfully saved file metadata to database")
 	}
 
-	// documents/???images/??????????????????OCR?????
-	// namespace?"documents/"???"images/"???????"/"???
+	// documents/???images/?????????OCR?????????
+	// namespace?"documents/"???"images/"????"/"????
+	log.Printf("Debug: Checking OCR queue condition - namespace=%s, ocrClient=%v", namespace, s.ocrClient != nil)
 	if (namespace == "documents/" || namespace == "images/") && s.ocrClient != nil {
-		// ????????????OCR??????
-		queueService, err := domain.NewQueueService(provider)
-		if err != nil {
-			log.Printf("Warning: Failed to create queue service: %v", err)
-		} else {
-			// ????OCR??????????
-			go func() {
-				if err := queueService.EnqueueOCRTask(context.Background(), filename, provider); err != nil {
-					log.Printf("Warning: Failed to enqueue OCR task: %v", err)
-				} else {
-					log.Printf("OCR task queued for file: %s (provider: %s)", filename, provider)
-				}
-			}()
+		// ????OCR??????????
+		queueManager := domain.GetQueueManager()
+		go func() {
+			if err := queueManager.EnqueueOCRTask(context.Background(), filename, provider); err != nil {
+				log.Printf("Warning: Failed to enqueue OCR task via QueueManager: %v", err)
+			} else {
+				log.Printf("OCR task queued via QueueManager for file: %s (provider: %s)", filename, provider)
+			}
+		}()
+	} else {
+		// ???????????????????
+		if namespace != "documents/" && namespace != "images/" {
+			log.Printf("Debug: OCR task not enqueued - namespace '%s' is not 'documents/' or 'images/'", namespace)
+		}
+		if s.ocrClient == nil {
+			log.Printf("Debug: OCR task not enqueued - ocrClient is nil")
 		}
 	}
 

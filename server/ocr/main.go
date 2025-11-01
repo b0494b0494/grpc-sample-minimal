@@ -397,32 +397,54 @@ func startOCRWorker(
 	fileMetadataRepo domain.FileMetadataRepository,
 	getStorageService func(ctx context.Context, provider string) (domain.StorageService, error),
 ) {
-	queueService, err := domain.NewQueueService(storageProvider)
-	if err != nil {
-		log.Printf("Warning: Failed to create queue service for %s: %v", storageProvider, err)
+	queueManager := domain.GetQueueManager()
+	if !queueManager.IsEnabled() {
+		log.Printf("Warning: QueueManager is disabled for %s", storageProvider)
 		return
 	}
-	
-	log.Printf("OCR worker started for storage provider: %s", storageProvider)
-	
+
+	log.Printf("OCR worker started for storage provider: %s (via QueueManager)", storageProvider)
+
+	log.Printf("Debug: GCS worker loop started, will call DequeueOCRTask repeatedly")
+	loopCount := 0
 	for {
-		// ???????????
-		task, err := queueService.DequeueOCRTask(ctx)
+		loopCount++
+		if loopCount%10 == 0 {
+			log.Printf("Debug: GCS worker loop iteration %d, calling DequeueOCRTask", loopCount)
+		}
+		// ??????????????????
+		task, err := queueManager.DequeueOCRTask(ctx, storageProvider)
 		if err != nil {
 			if err == context.Canceled || err == context.DeadlineExceeded {
+				log.Printf("Debug: GCS worker context canceled or deadline exceeded")
 				break
 			}
-			log.Printf("Error dequeuing OCR task: %v", err)
-			continue
+			log.Printf("Error dequeuing OCR task via QueueManager (provider: %s): %v", storageProvider, err)
+			// ???????????????
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(1 * time.Second):
+				continue
+			}
 		}
-		
+
 		if task == nil {
-			continue
+			// ???????????????????
+			if loopCount%20 == 0 {
+				log.Printf("Debug: GCS worker received nil task (no messages available), will retry")
+			}
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(500 * time.Millisecond):
+				continue
+			}
 		}
-		
+
 		log.Printf("Processing OCR task: file=%s, provider=%s", task.Filename, task.StorageProvider)
-		
-		// OCR??????defer + recover??????????????????????
+
+		// OCR??????defer + recover?panic????
 		func() {
 			defer func() {
 				if r := recover(); r != nil {
