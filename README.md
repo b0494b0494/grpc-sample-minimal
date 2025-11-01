@@ -59,6 +59,8 @@ This application uses Docker Compose for easy setup and execution.
     # Azure Storage emulator
     AZURE_STORAGE_ENDPOINT=http://azurite:10000
     AZURE_STORAGE_ACCOUNT_NAME=devstoreaccount1
+    # Note: This is a dummy key for Azurite emulator (development only)
+    # For production, use your actual Azure Storage Account key or connection string
     AZURE_STORAGE_ACCOUNT_KEY=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==
     AZURE_STORAGE_CONTAINER_NAME=grpc-sample-container
     ```
