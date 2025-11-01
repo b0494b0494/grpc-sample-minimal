@@ -338,8 +338,33 @@ export const useFileUpload = (
   // Update final status based on queue state
   const updateFinalStatus = () => {
     const stats = getQueueStats();
-    if (stats.error === 0 && stats.pending === 0) {
-      setUploadStatus(`All ${stats.success} file(s) uploaded successfully.`);
+    const successfulTasks = queueState.tasks.filter(t => t.status === 'success' && t.result);
+    
+    if (stats.error === 0 && stats.pending === 0 && stats.success > 0) {
+      // Calculate total bytes for successful uploads
+      let totalBytes = 0;
+      successfulTasks.forEach(task => {
+        if (task.result?.bytesWritten) {
+          const bytes = parseInt(task.result.bytesWritten, 10);
+          if (!isNaN(bytes)) {
+            totalBytes += bytes;
+          }
+        }
+      });
+      
+      // Format total bytes
+      let sizeText = '';
+      if (totalBytes > 0) {
+        if (totalBytes < 1024) {
+          sizeText = ` (${totalBytes} B)`;
+        } else if (totalBytes < 1024 * 1024) {
+          sizeText = ` (${(totalBytes / 1024).toFixed(2)} KB)`;
+        } else {
+          sizeText = ` (${(totalBytes / 1024 / 1024).toFixed(2)} MB)`;
+        }
+      }
+      
+      setUploadStatus(`All ${stats.success} file(s) uploaded successfully${sizeText}.`);
       setSelectedFiles([]);
     } else if (stats.success === 0 && stats.pending === 0) {
       setUploadStatus(`All ${stats.error} file(s) failed to upload.`);

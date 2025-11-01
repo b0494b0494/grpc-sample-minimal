@@ -181,6 +181,16 @@ export class UploadWorkerManager {
               (data.message.toLowerCase().includes('uploaded') ||
                 data.message.toLowerCase().includes('success')));
 
+          // Format bytesWritten - handle both string and number from server
+          let bytesWrittenStr = '0';
+          if (data.bytesWritten !== undefined && data.bytesWritten !== null) {
+            if (typeof data.bytesWritten === 'number') {
+              bytesWrittenStr = String(data.bytesWritten);
+            } else if (typeof data.bytesWritten === 'string' && data.bytesWritten !== '') {
+              bytesWrittenStr = data.bytesWritten;
+            }
+          }
+
           self.postMessage({
             type: 'PROGRESS_UPDATE',
             payload: {
@@ -196,7 +206,7 @@ export class UploadWorkerManager {
               success: isSuccess,
               result: {
                 filename: data.filename || fileName,
-                bytesWritten: data.bytesWritten || '0',
+                bytesWritten: bytesWrittenStr,
                 success: isSuccess,
                 message: data.message || 'File uploaded successfully',
                 error: data.error,
