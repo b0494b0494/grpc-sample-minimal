@@ -121,39 +121,41 @@ func (s *ocrServer) processOCRAsync(ctx context.Context, filename string, storag
 		return
 	}
 	
-	// 2. OCR??????????Tesseract????????
-	results, err := s.ocrService.ProcessDocument(ctx, filename, contentReader, []string{"tesseract"})
+	// 2. OCR?????????????????
+	engineNames := getEngineNames()
+	results, err := s.ocrService.ProcessDocument(ctx, filename, contentReader, engineNames)
 	if err != nil {
 		log.Printf("Failed to process OCR: %v", err)
 		s.saveFailedResult(ctx, filename, storageProvider, err)
 		return
 	}
 	
-	// 3. ????????????
+	// 3. ??????????????
 	if len(results) == 0 {
 		log.Printf("No OCR results returned for file: %s", filename)
 		s.saveFailedResult(ctx, filename, storageProvider, fmt.Errorf("no OCR results returned"))
 		return
 	}
 	
-	result := results["tesseract"]
-	if result == nil {
-		log.Printf("Tesseract engine result not found for file: %s", filename)
-		s.saveFailedResult(ctx, filename, storageProvider, fmt.Errorf("tesseract engine result not found"))
-		return
+	// ???????????
+	for engineName, result := range results {
+		if result == nil {
+			log.Printf("Warning: %s engine result is nil for file: %s", engineName, filename)
+			continue
+		}
+		result.StorageProvider = storageProvider
+		result.Status = "completed"
+		if result.ProcessedAt.IsZero() {
+			result.ProcessedAt = time.Now()
+		}
+		if err := s.ocrResultRepo.SaveOCRResult(ctx, result); err != nil {
+			log.Printf("Failed to save OCR result for engine %s: %v", engineName, err)
+		} else {
+			log.Printf("OCR result saved for engine %s: %s", engineName, filename)
+		}
 	}
 	
-	result.StorageProvider = storageProvider
-	result.Status = "completed"
-	if result.ProcessedAt.IsZero() {
-		result.ProcessedAt = time.Now()
-	}
-	
-	if err := s.ocrResultRepo.SaveOCRResult(ctx, result); err != nil {
-		log.Printf("Failed to save OCR result: %v", err)
-	} else {
-		log.Printf("OCR processing completed for file: %s", filename)
-	}
+	log.Printf("OCR processing completed for file: %s with %d engine(s)", filename, len(results))
 }
 
 // saveFailedResult ?????OCR???????
@@ -281,6 +283,28 @@ func (s *ocrServer) CompareOCRResults(ctx context.Context, req *pb.OCRComparison
 		StorageProvider: req.StorageProvider,
 		Results:       pbResults,
 	}, nil
+}
+
+// getEngineNames ??????OCR????????????????: tesseract?
+func getEngineNames() []string {
+	enginesEnv := os.Getenv("OCR_ENGINES")
+	if enginesEnv == "" {
+		return []string{"tesseract"}
+	}
+	
+	engines := strings.Split(enginesEnv, ",")
+	result := make([]string, 0, len(engines))
+	for _, e := range engines {
+		e = strings.TrimSpace(e)
+		if e != "" {
+			result = append(result, e)
+		}
+	}
+	
+	if len(result) == 0 {
+		return []string{"tesseract"}
+	}
+	return result
 }
 
 // authInterceptor ???????????
@@ -522,57 +546,41 @@ func processOCRTask(
 		return
 	}
 	
-	// 2. OCR??????????Tesseract????????
-	results, err := ocrService.ProcessDocument(ctx, filename, contentReader, []string{"tesseract"})
+	// 2. OCR?????????????????
+	engineNames := getEngineNames()
+	results, err := ocrService.ProcessDocument(ctx, filename, contentReader, engineNames)
 	if err != nil {
 		log.Printf("Failed to process OCR: %v", err)
 		saveFailedResult(ctx, filename, storageProvider, ocrResultRepo, err)
 		return
 	}
 	
-	// 3. ????????????
+	// 3. ??????????????
 	if len(results) == 0 {
 		log.Printf("No OCR results returned for file: %s", filename)
 		saveFailedResult(ctx, filename, storageProvider, ocrResultRepo, fmt.Errorf("no OCR results returned"))
 		return
 	}
 	
-	result := results["tesseract"]
-	if result == nil {
-		log.Printf("Tesseract engine result not found for file: %s", filename)
-		saveFailedResult(ctx, filename, storageProvider, ocrResultRepo, fmt.Errorf("tesseract engine result not found"))
-		return
+	// ???????????
+	for engineName, result := range results {
+		if result == nil {
+			log.Printf("Warning: %s engine result is nil for file: %s", engineName, filename)
+			continue
+		}
+		result.StorageProvider = storageProvider
+		result.Status = "completed"
+		if result.ProcessedAt.IsZero() {
+			result.ProcessedAt = time.Now()
+		}
+		if err := ocrResultRepo.SaveOCRResult(ctx, result); err != nil {
+			log.Printf("Failed to save OCR result for engine %s: %v", engineName, err)
+		} else {
+			log.Printf("OCR result saved for engine %s: %s", engineName, filename)
+		}
 	}
 	
-	result.StorageProvider = storageProvider
-	result.Status = "completed"
-	if result.ProcessedAt.IsZero() {
-		result.ProcessedAt = time.Now()
-	}
-	
-	if err := ocrResultRepo.SaveOCRResult(ctx, result); err != nil {
-		// ??????????????????????????????????????????
-		log.Printf("Failed to save OCR result to database: %v", err)
-		// ???????????????
-		if store, err := domain.GetOrCreateQueueTaskStore(ctx); err == nil {
-			store.LogFailed(ctx, filename, storageProvider, err)
-		}
-		// ?????????????????????????
-		failedResult := &domain.OCRResult{
-			Filename:        filename,
-			StorageProvider: storageProvider,
-			EngineName:      "tesseract",
-			Status:          "failed",
-			Error:           fmt.Errorf("failed to save OCR result to database: %w", err),
-			ProcessedAt:     time.Now(),
-		}
-		if saveErr := ocrResultRepo.SaveOCRResult(ctx, failedResult); saveErr != nil {
-			log.Printf("CRITICAL: Failed to save error result to database: %v", saveErr)
-			// ?????????????????????????
-		}
-	} else {
-		log.Printf("OCR processing completed for file: %s", filename)
-	}
+	log.Printf("OCR processing completed for file: %s with %d engine(s)", filename, len(results))
 }
 
 // saveFailedResult ?????OCR???????
