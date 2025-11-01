@@ -176,34 +176,51 @@ export const OCRResults: React.FC<OCRResultsProps> = ({ storageProvider }) => {
                   <strong>Status:</strong> OCR processing is still in progress. Please refresh to check for updates.
                 </div>
               )}
-              {detailResult.pages && detailResult.pages.length > 1 ? (
-                <Accordion>
-                  {detailResult.pages.map((page, idx) => (
-                    <Accordion.Item key={idx} eventKey={idx.toString()}>
-                      <Accordion.Header>
-                        Page {page.page_number}
-                        {page.confidence > 0 && (
-                          <span className="ms-2 small text-muted">
-                            ({(page.confidence * 100).toFixed(1)}% confidence)
-                          </span>
-                        )}
-                      </Accordion.Header>
-                      <Accordion.Body>
-                        <pre className="bg-light p-3 rounded small" style={{ whiteSpace: 'pre-wrap', maxHeight: '300px', overflowY: 'auto' }}>
-                          {page.text || '(No text extracted)'}
+              {detailResult.status === 'completed' && (
+                <>
+                  {detailResult.pages && detailResult.pages.length > 0 ? (
+                    <div>
+                      <strong>Extracted Text ({detailResult.pages.length} page{detailResult.pages.length > 1 ? 's' : ''}):</strong>
+                      {detailResult.pages.length > 1 ? (
+                        <Accordion className="mt-2">
+                          {detailResult.pages.map((page, idx) => (
+                            <Accordion.Item key={idx} eventKey={idx.toString()}>
+                              <Accordion.Header>
+                                Page {page.page_number}
+                                {page.confidence > 0 && (
+                                  <span className="ms-2 small text-muted">
+                                    ({(page.confidence * 100).toFixed(1)}% confidence)
+                                  </span>
+                                )}
+                              </Accordion.Header>
+                              <Accordion.Body>
+                                <pre className="bg-light p-3 rounded small" style={{ whiteSpace: 'pre-wrap', maxHeight: '300px', overflowY: 'auto' }}>
+                                  {page.text || '(No text extracted)'}
+                                </pre>
+                              </Accordion.Body>
+                            </Accordion.Item>
+                          ))}
+                        </Accordion>
+                      ) : (
+                        <pre className="bg-light p-3 rounded mt-2 small" style={{ whiteSpace: 'pre-wrap', maxHeight: '400px', overflowY: 'auto' }}>
+                          {detailResult.pages[0]?.text || '(No text extracted)'}
                         </pre>
-                      </Accordion.Body>
-                    </Accordion.Item>
-                  ))}
-                </Accordion>
-              ) : detailResult.status === 'completed' ? (
-                <div>
-                  <strong>Extracted Text:</strong>
-                  <pre className="bg-light p-3 rounded mt-2 small" style={{ whiteSpace: 'pre-wrap', maxHeight: '400px', overflowY: 'auto' }}>
-                    {detailResult.extracted_text || '(No text extracted)'}
-                  </pre>
-                </div>
-              ) : null}
+                      )}
+                    </div>
+                  ) : detailResult.extracted_text ? (
+                    <div>
+                      <strong>Extracted Text:</strong>
+                      <pre className="bg-light p-3 rounded mt-2 small" style={{ whiteSpace: 'pre-wrap', maxHeight: '400px', overflowY: 'auto' }}>
+                        {detailResult.extracted_text}
+                      </pre>
+                    </div>
+                  ) : (
+                    <div className="alert alert-warning">
+                      <strong>No text extracted.</strong> The OCR processing completed but no text was found.
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           ) : (
             <div className="alert alert-warning">
