@@ -6,9 +6,9 @@ This is a minimal gRPC sample application implemented in Go, demonstrating basic
 
 - `proto/`: Contains the Protocol Buffer definition (`greeter.proto`) and the generated Go code with namespace `grpc-sample-minimal/proto/`.
 - `server/`: Implements the gRPC server with a layered architecture (domain, application, infrastructure) including authentication and logging interceptors.
-  - `server/domain/`: Domain layer with storage service implementations (S3, GCS, Azure Blob Storage), OCR services (Tesseract), document converters, and SQLite database repository
-  - `server/application/`: Application layer service orchestrating gRPC calls, file operations, and OCR processing
-- `server/ocr/`: Standalone OCR service that processes images and documents using Tesseract OCR engine.
+  - `server/domain/`: Domain layer with storage service implementations (S3, GCS, Azure Blob Storage), queue services (Pub/Sub, SQS, Azure Queue), OCR services (Tesseract), document converters, and SQLite database repository
+  - `server/application/`: Application layer service orchestrating gRPC calls, file operations, and OCR task queuing
+- `server/ocr/`: Standalone OCR service that processes images and documents using Tesseract OCR engine. It continuously dequeues OCR tasks from provider-specific queues and processes them asynchronously.
 - `client/`: Implements the gRPC client with authentication and logging interceptors.
 - `webapp/`: Contains a React frontend application (TypeScript with React Bootstrap, API service layer, custom hooks, and component-based structure) and a Go backend that exposes HTTP API endpoints for gRPC calls.
   - `webapp/src/components/`: React components including `AlertDialog` for modal dialogs and `OCRResults` for displaying OCR processing results
@@ -43,8 +43,21 @@ This application uses Docker Compose for easy setup and execution.
     GRPC_SERVER_PORT=50051
     OCR_SERVICE_PORT=50052
     DB_PATH=/app/data/files.db
+    # GCS emulator
+    STORAGE_EMULATOR_HOST=fake-gcs:4443
+    GOOGLE_CLOUD_PROJECT=dev-project
+    GCS_BUCKET_NAME=grpc-sample-bucket
+    # Pub/Sub emulator
+    PUBSUB_EMULATOR_HOST=pubsub-emulator:8085
+    # Azure Storage emulator
+    AZURE_STORAGE_ENDPOINT=http://azurite:10000
+    AZURE_STORAGE_ACCOUNT_NAME=devstoreaccount1
+    AZURE_STORAGE_ACCOUNT_KEY=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==
+    AZURE_STORAGE_CONTAINER_NAME=grpc-sample-container
     ```
     *Note: The `AUTH_TOKEN` is used for gRPC authentication. `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `S3_BUCKET_NAME`, and `LOCALSTACK_ENDPOINT` are for Localstack S3 integration. `GRPC_SERVER_PORT` defines the port the gRPC server listens on. `OCR_SERVICE_PORT` defines the port the OCR service listens on (default: 50052). `DB_PATH` specifies the path to the SQLite database file for file metadata and OCR results storage.*
+    
+    **GCS and Pub/Sub Emulators:** Google Cloud Storage and Pub/Sub emulator configuration is handled automatically in `docker-compose.yml`. The `STORAGE_EMULATOR_HOST` and `PUBSUB_EMULATOR_HOST` are set to connect to the emulators running in Docker containers.
     
     **Azure Storage Emulator:** Azure Blob Storage configuration is handled automatically in `docker-compose.yml`. For production use, you would set:
     - `AZURE_STORAGE_CONNECTION_STRING`: Connection string for real Azure Storage (when not using emulator)
@@ -69,9 +82,10 @@ This application uses Docker Compose for easy setup and execution.
     - **webapp:** Web application with React frontend and Go backend (port 8080)
 
     **Storage Emulators:**
-    - **Localstack:** The `localstack` service emulates AWS S3 locally. The server will attempt to create an S3 bucket named `grpc-sample-bucket` on startup.
-    - **fake-gcs:** The `fake-gcs` service emulates Google Cloud Storage locally.
-    - **Azurite:** The `azurite` service emulates Azure Blob Storage locally (runs on port 10000 for Blob service).
+    - **Localstack:** The `localstack` service emulates AWS S3 and SQS locally. The server will attempt to create an S3 bucket named `grpc-sample-bucket` and an SQS queue named `ocr-tasks-queue` on startup (port 4566).
+    - **fake-gcs:** The `fake-gcs` service emulates Google Cloud Storage locally (port 4443).
+    - **pubsub-emulator:** The `pubsub-emulator` service emulates Google Cloud Pub/Sub locally. It automatically creates topics and subscriptions for OCR task processing (port 8085).
+    - **Azurite:** The `azurite` service emulates Azure Blob Storage and Queue Storage locally (port 10000 for Blob service, 10001 for Queue service).
 
     **Example Client Output (from `client` service):**
     ```
@@ -148,6 +162,27 @@ This application supports multiple cloud storage providers with local emulators:
 
 All storage providers can be selected from the web UI, and files uploaded/downloaded will be stored in the respective emulator.
 
+## Queue System for OCR Processing
+
+This application uses a queue-based architecture for asynchronous OCR task processing:
+
+| Storage Provider | Queue Service | Emulator | Description |
+|-----------------|---------------|----------|-------------|
+| AWS S3 | AWS SQS | Localstack | SQS queue (`ocr-tasks-queue`) for OCR task queuing |
+| Google Cloud Storage | GCP Pub/Sub | pubsub-emulator | Pub/Sub topic (`ocr-tasks`) and subscription (`ocr-tasks-subscription`) for OCR task processing |
+| Azure Blob Storage | Azure Queue Storage | Azurite | Azure Queue Storage (fallback to in-memory queue) |
+
+**How it works:**
+1. When a file is uploaded to `documents/` or `images/` namespace, an OCR task is automatically enqueued
+2. The OCR service continuously dequeues tasks from the queue
+3. OCR processing runs asynchronously in the background
+4. Results are stored in the SQLite database
+
+**Queue Configuration:**
+- Each storage provider uses its native queue service
+- Queue services automatically fall back to in-memory queues if emulators are unavailable
+- Pub/Sub uses a dedicated Receive loop with proper context management for reliable message delivery
+
 ## Features
 
 - **gRPC Communication**: Unary, server streaming, client streaming, and bidirectional streaming
@@ -166,6 +201,8 @@ All storage providers can be selected from the web UI, and files uploaded/downlo
   - List and manage OCR results for multiple files
   - Compare OCR results from different engines (when multiple engines are available)
   - OCR service runs as a separate microservice for scalability
+  - Automatic OCR task queuing for `documents/` and `images/` files
+  - Queue-based asynchronous processing using provider-specific queues (SQS for S3, Pub/Sub for GCS, Azure Queue for Azure)
 - **SQLite Database**: File metadata management for tracking uploaded files and OCR results
 - **Storage Emulators**: Local development support for AWS S3, GCS, and Azure Blob Storage
 - **Web UI**: 
