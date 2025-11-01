@@ -85,7 +85,10 @@ This application uses Docker Compose for easy setup and execution.
     - **Localstack:** The `localstack` service emulates AWS S3 and SQS locally. The server will attempt to create an S3 bucket named `grpc-sample-bucket` and an SQS queue named `ocr-tasks-queue` on startup (port 4566).
     - **fake-gcs:** The `fake-gcs` service emulates Google Cloud Storage locally (port 4443).
     - **pubsub-emulator:** The `pubsub-emulator` service emulates Google Cloud Pub/Sub locally. It automatically creates topics and subscriptions for OCR task processing (port 8085).
-    - **Azurite:** The `azurite` service emulates Azure Blob Storage and Queue Storage locally (port 10000 for Blob service, 10001 for Queue service).
+    - **Azurite:** The `azurite` service emulates Azure Blob Storage and Queue Storage locally:
+      - **Blob Storage**: Port 10000 (for file uploads/downloads)
+      - **Queue Storage**: Port 10001 (for OCR task queuing)
+      - The application automatically uses the correct port based on the operation type
 
     **Example Client Output (from `client` service):**
     ```
@@ -170,7 +173,7 @@ This application uses a queue-based architecture for asynchronous OCR task proce
 |-----------------|---------------|----------|-------------|
 | AWS S3 | AWS SQS | Localstack | SQS queue (`ocr-tasks-queue`) for OCR task queuing |
 | Google Cloud Storage | GCP Pub/Sub | pubsub-emulator | Pub/Sub topic (`ocr-tasks`) and subscription (`ocr-tasks-subscription`) for OCR task processing |
-| Azure Blob Storage | Azure Queue Storage | Azurite | Azure Queue Storage (fallback to in-memory queue) |
+| Azure Blob Storage | Azure Queue Storage | Azurite | Azure Queue Storage (`ocr-tasks-queue`) using Azurite Queue service (port 10001). Falls back to in-memory queue if emulator is unavailable |
 
 **How it works:**
 1. When a file is uploaded to `documents/` or `images/` namespace, an OCR task is automatically enqueued
@@ -182,6 +185,14 @@ This application uses a queue-based architecture for asynchronous OCR task proce
 - Each storage provider uses its native queue service
 - Queue services automatically fall back to in-memory queues if emulators are unavailable
 - Pub/Sub uses a dedicated Receive loop with proper context management for reliable message delivery
+- **Azure Queue Storage Implementation:**
+  - Uses Azure Queue Storage SDK (`github.com/Azure/azure-sdk-for-go/sdk/storage/azqueue`)
+  - Queue name: `ocr-tasks-queue` (automatically created if it doesn't exist)
+  - Uses `DequeueMessages` API with `NumberOfMessages=1` and `VisibilityTimeout=30` seconds
+  - Queue endpoint: Port 10001 (Blob Storage uses port 10000, Queue Storage uses port 10001)
+  - Automatically detects and converts `AZURE_STORAGE_ENDPOINT` from Blob port (10000) to Queue port (10001)
+  - Singleton pattern ensures a single `QueueClient` instance is shared across enqueue/dequeue operations
+  - Comprehensive debug logging for troubleshooting queue operations
 
 ## Features
 
