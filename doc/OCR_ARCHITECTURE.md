@@ -46,7 +46,7 @@ OCR機能は**マイクロサービスアーキテクチャ**として実装さ�
                      └───────────────────────────────┘
 ```
 
-### Phase 2: 独立マイクロサービス
+### Phase 2: 独立マイクロサービス（エンジンごとに別コンテナ）
 
 ```
 ┌─────────────────────────────────┐
@@ -57,31 +57,36 @@ OCR機能は**マイクロサービスアーキテクチャ**として実装さ�
            │
 ┌─────────────────────────────────┐
 │ ApplicationService  │
-│  - ocrClient        ────────────────┐
-│  (gRPC)             │              │
+│  - ocrRouter        ────────────────┐
+│  (エンジン選択)      │              │
 └─────────────────────────────────┘   │
                                      │
                                      │
                      ┌───────────────────────────────┐
-                     │  OCRClient Interface          │
-                     │  (gRPC)                       │
+                     │  OCRRouter                    │
+                     │  (エンジン名でルーティング)     │
                      └───────────────────────────────┘
                                  │
-                                 │
-                     ┌───────────────────────────────┐
-                     │  ocrClientAdapter             │
-                     │  (gRPCクライアント)            │
-                     └───────────────────────────────┘
-                                 │ gRPC
-                                 │
-                     ┌───────────────────────────────┐
-                     │  OCR Service                  │
-                     │  (独立サービス)                │
-                     │  - TesseractEngine             │
-                     │  - EasyOCREngine                │
-                     │  - PaddleOCREngine              │
-                     └───────────────────────────────┘
+                    ┌────────────┼────────────┐
+                    │            │            │
+                    │            │            │
+    ┌───────────────┘    ┌───────┘    ┌───────┘
+    │                    │            │
+    │ gRPC               │ gRPC       │ gRPC
+    │                    │            │
+┌─────────────────┐ ┌──────────┐ ┌────────────┐
+│ OCR Service     │ │ OCR Service│ │ OCR Service│
+│ Tesseract       │ │ EasyOCR   │ │ PaddleOCR  │
+│ (port 50052)    │ │ (port 50053)│ │ (port 50054)│
+│ - TesseractEngine│ │ - EasyOCREngine│ │ - PaddleOCREngine│
+└─────────────────┘ └──────────┘ └────────────┘
 ```
+
+**メリット:**
+- Dockerイメージサイズの最適化（必要なエンジンのみ）
+- エンジンごとの独立スケーリング
+- エンジンの追加・削除が容易
+- リソース分離（メモリ、CPU）
 
 ## 実装詳細
 
@@ -114,9 +119,14 @@ appService := application.NewApplicationService(
 
 ### 3. 設定オプション
 
-- **環境変数**: `OCR_CLIENT_MODE=local` または `grpc`
+- **環境変数**: 
+  - `OCR_CLIENT_MODE=local` または `grpc`
+  - `OCR_TESSERACT_ENDPOINT=http://ocr-tesseract:50052`
+  - `OCR_EASYOCR_ENDPOINT=http://ocr-easyocr:50053`
+  - `OCR_PADDLEOCR_ENDPOINT=http://ocr-paddleocr:50054`
 - **ApplicationServiceの変更**: 最小限に抑える
-- **拡張性**: 将来的に複数のOCRエンジンに対応可能
+- **拡張性**: エンジンごとに独立したコンテナで実装可能
+- **イメージサイズ最適化**: 各エンジンの必要な依存関係のみを含める
 
 ## ファイル構成
 
@@ -141,3 +151,22 @@ server/
 2. **独立性**: OCRサービスを独立して開発・デプロイ可能
 3. **テスト容易性**: モックやスタブで簡単にテスト可能
 4. **柔軟性**: 将来的に複数エンジン対応も容易
+5. **イメージサイズ最適化**: エンジンごとに別コンテナで必要な依存関係のみ
+6. **リソース分離**: エンジンごとに独立したメモリ・CPU制限
+7. **スケーリング**: 需要に応じて特定のエンジンのみスケール可能
+
+## 実装フェーズ
+
+### Phase 2A: エンジンごとに別コンテナ設計に移行（現在）
+- OCR_ARCHITECTURE.mdの設計を更新
+- docker-compose.ymlに複数OCRサービス定義の準備
+- OCRRouterの実装計画
+
+### Phase 2B: Tesseractコンテナの分離（次フェーズ）
+- 既存のocr-serviceをocr-tesseract-serviceに変更
+- 独立したDockerfile.tesseractの作成
+
+### Phase 2C: 新規エンジンの追加（段階的）
+- EasyOCRコンテナの追加（docker-compose.yml、Dockerfile.easyocr）
+- PaddleOCRコンテナの追加（docker-compose.yml、Dockerfile.paddleocr）
+- 各エンジンの実装（domain/easyocr.go、domain/paddleocr.go）
