@@ -46,8 +46,6 @@ export class UploadWorkerManager {
     try {
       // Create Worker using Blob URL since react-scripts doesn't support direct Worker imports
       const workerCode = this.getWorkerCode();
-      console.log('[UploadWorkerManager] Worker code length:', workerCode.length);
-      console.log('[UploadWorkerManager] Worker code contains uploadUrl:', workerCode.includes('http://localhost:8080/api/upload-file'));
 
       // Create Worker using Blob URL
       // タイムスタンプを追加してキャッシュを防ぐ
@@ -55,8 +53,6 @@ export class UploadWorkerManager {
       const workerCodeWithTimestamp = `// Worker generated at ${timestamp}\n${workerCode}`;
       const blob = new Blob([workerCodeWithTimestamp], { type: 'application/javascript' });
       this.workerUrl = URL.createObjectURL(blob);
-      console.log('[UploadWorkerManager] Created Worker blob URL:', this.workerUrl);
-      console.log('[UploadWorkerManager] Worker code preview (first 500 chars):', workerCode.substring(0, 500));
       this.worker = new Worker(this.workerUrl, { type: 'classic' });
 
       // Set up message handler
@@ -66,24 +62,11 @@ export class UploadWorkerManager {
 
       this.worker.onerror = (error) => {
         console.error('[UploadWorkerManager] Worker error:', error);
-        console.error('[UploadWorkerManager] Worker error details:', {
-          message: error.message,
-          filename: error.filename,
-          lineno: error.lineno,
-          colno: error.colno
-        });
         this.initialized = false;
         this.worker = null;
       };
 
-      this.worker.onmessageerror = (error) => {
-        console.error('[UploadWorkerManager] Worker message error:', error);
-      };
-
-      // Workerが正しく起動したか確認
-      console.log('[UploadWorkerManager] Worker created, waiting for ready...');
       this.initialized = true;
-      console.log('[UploadWorkerManager] Worker initialized:', this.initialized);
     } catch (error) {
       console.error('Failed to initialize worker:', error);
       this.worker = null;
@@ -155,14 +138,8 @@ export class UploadWorkerManager {
         formData.append('storageProvider', storageProvider);
 
         try {
-          // 固定値: http://localhost:8080/api/upload-file
+          // Fixed URL
           const uploadUrl = 'http://localhost:8080/api/upload-file';
-          console.log('[Worker] uploadUrl =', uploadUrl);
-          console.log('[Worker] uploadUrl type:', typeof uploadUrl);
-          console.log('[Worker] uploadUrl startsWith http:', uploadUrl.startsWith('http://'));
-          if (!uploadUrl || !uploadUrl.startsWith('http://') && !uploadUrl.startsWith('https://')) {
-            throw new Error('Worker: uploadUrl is not absolute: ' + uploadUrl);
-          }
           const response = await fetch(uploadUrl, {
             method: 'POST',
             headers: {
@@ -258,16 +235,12 @@ export class UploadWorkerManager {
         
         if (message.type === 'TASK_COMPLETE') {
           // Resolve even if success=false, let caller handle the result
-          console.debug(`[UploadWorkerManager] Resolving Promise for task ${taskId}`);
           pendingTask.resolve();
         } else {
           // Reject on error
           const errorMsg = message.payload.error || 'Upload failed';
-          console.debug(`[UploadWorkerManager] Rejecting Promise for task ${taskId}:`, errorMsg);
           pendingTask.reject(new Error(errorMsg));
         }
-      } else {
-        console.warn(`[UploadWorkerManager] Received ${message.type} for task ${taskId} but no pending Promise found`);
       }
     }
     
@@ -334,11 +307,8 @@ export class UploadWorkerManager {
 
     // Create Promise for this task
     return new Promise<void>((resolve, reject) => {
-      console.debug(`[UploadWorkerManager] Creating Promise for task ${taskId}`);
-      
       // Set up timeout
       const timeout = setTimeout(() => {
-        console.warn(`[UploadWorkerManager] Task ${taskId} timed out after ${timeoutMs}ms`);
         const pendingTask = this.pendingTasks.get(taskId);
         if (pendingTask) {
           this.pendingTasks.delete(taskId);
@@ -348,7 +318,6 @@ export class UploadWorkerManager {
 
       // Store resolver/rejecter
       this.pendingTasks.set(taskId, { resolve, reject, timeout });
-      console.debug(`[UploadWorkerManager] Stored Promise for task ${taskId}, total pending: ${this.pendingTasks.size}`);
 
       const message: UploadTaskMessage = {
         type: 'UPLOAD_TASK',
@@ -366,11 +335,9 @@ export class UploadWorkerManager {
 
       // Send message to Worker
       try {
-        console.debug(`[UploadWorkerManager] Sending UPLOAD_TASK message for task ${taskId}`);
         (this.worker as any).postMessage(message);
       } catch (error) {
         // Clean up on send error
-        console.error(`[UploadWorkerManager] Failed to send message for task ${taskId}:`, error);
         clearTimeout(timeout);
         this.pendingTasks.delete(taskId);
         reject(new Error(`Failed to send message to Worker: ${error}`));

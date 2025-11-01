@@ -81,15 +81,9 @@ export const useFileUpload = (
     unsubscribeHandlersRef.current = unsubscribeHandlers;
 
     // Initialize Worker when component mounts
-    console.log('[useFileUpload] Initializing Worker on mount...');
-    workerManager.initialize()
-      .then(() => {
-        console.log('[useFileUpload] Worker initialized successfully');
-        console.log('[useFileUpload] Worker isAvailable:', workerManager.isAvailable());
-      })
-      .catch((error) => {
-        console.error('[useFileUpload] Worker initialization error:', error);
-      });
+    workerManager.initialize().catch((error) => {
+      console.error('[useFileUpload] Worker initialization error:', error);
+    });
 
     return () => {
       // Cleanup: unsubscribe all handlers
@@ -99,7 +93,7 @@ export const useFileUpload = (
 
   // Get API config - ????????
   const getApiConfig = () => {
-    // ???: http://localhost:8080
+    
     const API_BASE_URL = 'http://localhost:8080';
     const AUTH_TOKEN = 'my-secret-token';
     
@@ -135,14 +129,6 @@ export const useFileUpload = (
     addTasks(tasks);
 
     const { API_BASE_URL, AUTH_TOKEN } = getApiConfig();
-    
-    // ??URL???????????????
-    console.log('[useFileUpload] About to upload with API_BASE_URL:', API_BASE_URL);
-    if (!API_BASE_URL || (!API_BASE_URL.startsWith('http://') && !API_BASE_URL.startsWith('https://'))) {
-      console.error('[useFileUpload] ERROR: API_BASE_URL is not absolute:', API_BASE_URL);
-      throw new Error(`API_BASE_URL must be absolute URL. Got: "${API_BASE_URL}"`);
-    }
-    
     const workerManager = workerManagerRef.current;
     
     // Try to use Worker if enabled, fall back to sync if Worker unavailable
@@ -155,7 +141,6 @@ export const useFileUpload = (
         
         if (workerManager.isAvailable()) {
           // Use Web Worker for background processing
-          console.log('[useFileUpload] Passing to Worker - API_BASE_URL:', API_BASE_URL);
           await uploadWithWorker(tasks, workerManager, API_BASE_URL, AUTH_TOKEN);
         } else {
           // Worker not available, fall back to sync
