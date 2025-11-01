@@ -84,6 +84,14 @@ func (qm *QueueManager) EnqueueOCRTask(ctx context.Context, filename string, sto
 	}
 
 	log.Printf("OCR task enqueued via QueueManager: file=%s, provider=%s", filename, storageProvider)
+	
+	// ????????????
+	if store, err := GetOrCreateQueueTaskStore(ctx); err == nil {
+		if err := store.LogEnqueue(ctx, filename, storageProvider); err != nil {
+			log.Printf("Warning: Failed to log enqueue to store: %v", err)
+		}
+	}
+	
 	return nil
 }
 
@@ -95,16 +103,26 @@ func (qm *QueueManager) DequeueOCRTask(ctx context.Context, storageProvider stri
 
 	queue, err := qm.GetOrCreateQueue(storageProvider)
 	if err != nil {
+		log.Printf("ERROR: QueueManager failed to get queue for %s: %v", storageProvider, err)
 		return nil, fmt.Errorf("failed to get queue for %s: %w", storageProvider, err)
 	}
 
+	log.Printf("DEBUG: QueueManager calling queue.DequeueOCRTask for provider=%s, queue type=%T", storageProvider, queue)
 	task, err := queue.DequeueOCRTask(ctx)
 	if err != nil {
+		log.Printf("ERROR: QueueManager queue.DequeueOCRTask failed for provider=%s: %v", storageProvider, err)
 		return nil, fmt.Errorf("failed to dequeue OCR task: %w", err)
 	}
 
 	if task != nil {
 		log.Printf("OCR task dequeued via QueueManager: file=%s, provider=%s", task.Filename, task.StorageProvider)
+		
+		// ????????????
+		if store, err := GetOrCreateQueueTaskStore(ctx); err == nil {
+			if err := store.LogDequeue(ctx, task.Filename, task.StorageProvider); err != nil {
+				log.Printf("Warning: Failed to log dequeue to store: %v", err)
+			}
+		}
 	}
 	return task, nil
 }
