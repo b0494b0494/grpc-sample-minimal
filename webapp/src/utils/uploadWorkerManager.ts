@@ -138,7 +138,6 @@ export class UploadWorkerManager {
         formData.append('storageProvider', storageProvider);
 
         try {
-          // Fixed URL
           const uploadUrl = 'http://localhost:8080/api/upload-file';
           const response = await fetch(uploadUrl, {
             method: 'POST',
@@ -299,8 +298,6 @@ export class UploadWorkerManager {
     // Convert File to ArrayBuffer
     const arrayBuffer = await file.arrayBuffer();
 
-    // apiBaseUrlは固定値で渡される（http://localhost:8080）
-    // バリデーションのみ
     if (!apiBaseUrl || (!apiBaseUrl.startsWith('http://') && !apiBaseUrl.startsWith('https://'))) {
       throw new Error(`Invalid API base URL: "${apiBaseUrl}". Must be absolute URL.`);
     }

@@ -91,11 +91,9 @@ export const useFileUpload = (
     };
   }, [options.useWorker, updateTask]);
 
-  // Get API config - ????????
   const getApiConfig = () => {
-    
     const API_BASE_URL = 'http://localhost:8080';
-    const AUTH_TOKEN = 'my-secret-token';
+    const AUTH_TOKEN = process.env.REACT_APP_AUTH_TOKEN || 'my-secret-token';
     
     return { API_BASE_URL, AUTH_TOKEN };
   };
