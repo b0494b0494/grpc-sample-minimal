@@ -60,7 +60,7 @@ for provider in "gcs" "s3" "azure"; do
     # OCR??????????
     echo ""
     echo "=== OCR Service Logs for $provider (last 10 lines) ==="
-    docker compose logs --tail=50 ocr-service | grep -E "($provider|$FILENAME|Enqueue|Dequeue|Processing)" | tail -10 || echo "No matching logs found"
+    docker compose logs --tail=50 ocr-tesseract-service ocr-easyocr-service | grep -E "($provider|$FILENAME|Enqueue|Dequeue|Processing|engine)" | tail -10 || echo "No matching logs found"
 done
 
 echo ""

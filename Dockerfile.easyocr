@@ -55,8 +55,8 @@ WORKDIR /app
 # ????????????
 RUN mkdir -p /app/data
 
-# EasyOCR???????
-RUN pip3 install --no-cache-dir easyocr
+    # EasyOCR????????Alpine Linux???
+RUN pip3 install --no-cache-dir --break-system-packages easyocr
 
 COPY --from=builder /app/ocr-easyocr-service /app/ocr-easyocr-service
 COPY --from=builder /app/proto/*.go /app/proto/
